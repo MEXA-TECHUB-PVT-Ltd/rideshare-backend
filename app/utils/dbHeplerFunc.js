@@ -1,5 +1,9 @@
 const { pool } = require("../config/db.config");
-const { responseHandler, updateIntoTable, insertIntoTable } = require("./commonResponse");
+const {
+  responseHandler,
+  updateIntoTable,
+  insertIntoTable,
+} = require("./commonResponse");
 
 // Configuration for fields to exclude from certain tables
 const tableFieldExclusions = {
@@ -11,7 +15,9 @@ exports.getAll = async (
   tableName,
   defaultSortField = "id",
   fields = "*",
-  additionalFilters = {}
+  additionalFilters = {},
+  join = "",
+  joinFields = ""
 ) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
@@ -19,13 +25,18 @@ exports.getAll = async (
   const sortOrder = req.query.sortOrder || "desc";
 
   try {
-    // Adjust fields based on the table and exclusions
+    // Adjust fields based on the table, exclusions, and JOINs
+    let selectFields = fields;
+    if (join && joinFields) {
+      selectFields += `, ${joinFields}`;
+    }
+
     if (fields === "*" && tableFieldExclusions[tableName]) {
       const exclusions = tableFieldExclusions[tableName];
       const allFieldsQuery = `SELECT column_name FROM information_schema.columns WHERE table_name = $1`;
       const allFieldsResult = await pool.query(allFieldsQuery, [tableName]);
       const allFields = allFieldsResult.rows.map((row) => row.column_name);
-      fields = allFields
+      selectFields = allFields
         .filter((field) => !exclusions.includes(field))
         .join(", ");
     }
@@ -39,8 +50,8 @@ exports.getAll = async (
       queryParams.push(additionalFilters[key]);
     });
 
-    let query = `SELECT ${fields} FROM ${tableName}`;
-    let totalQuery = `SELECT COUNT(*) FROM ${tableName}`;
+    let query = `SELECT ${selectFields} FROM ${tableName} ${join}`;
+    let totalQuery = `SELECT COUNT(*) FROM ${tableName} ${join}`;
 
     if (whereClauses.length > 0) {
       const whereClause = ` WHERE ${whereClauses.join(" AND ")}`;
@@ -95,19 +106,30 @@ exports.getAll = async (
   }
 };
 
-
 exports.getSingle = async (
   req,
   res,
   tableName,
   idField = "id",
-  fields = "*"
+  fields = "*",
+  join = "",
+  joinFields = ""
 ) => {
   const id = req.params.id;
 
   try {
-    const query = `SELECT ${fields} FROM ${tableName} WHERE ${idField} = $1`;
+    // Constructing the SELECT part of the query
+    let selectFields = fields;
+    if (join && joinFields) {
+      selectFields += `, ${joinFields}`;
+    }
+
+    // Constructing the full query
+    const query = `SELECT ${selectFields} FROM ${tableName} ${join} WHERE ${tableName}.${idField} = $1`;
+
     const result = await pool.query(query, [id]);
+
+    // Remove sensitive data for 'users' table
     if (tableName === "users") {
       delete result.rows[0].password;
       delete result.rows[0].otp;
@@ -134,6 +156,7 @@ exports.getSingle = async (
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
 exports.deleteSingle = async (
   req,
   res,
@@ -175,7 +198,6 @@ exports.deleteSingle = async (
   }
 };
 
-
 exports.deleteAll = async (
   req,
   res,
@@ -184,17 +206,40 @@ exports.deleteAll = async (
   fieldValue = null
 ) => {
   try {
-    let query;
-    let queryParams = [];
-
+    // Check if records exist
+    let checkQuery;
+    let checkParams = [];
     if (field && fieldValue !== null) {
-      query = `DELETE FROM ${tableName} WHERE ${field} = $1`;
-      queryParams.push(fieldValue);
+      checkQuery = `SELECT COUNT(*) FROM ${tableName} WHERE ${field} = $1`;
+      checkParams.push(fieldValue);
     } else {
-      query = `DELETE FROM ${tableName}`;
+      checkQuery = `SELECT COUNT(*) FROM ${tableName}`;
     }
 
-    await pool.query(query, queryParams);
+    const checkResult = await pool.query(checkQuery, checkParams);
+    const count = parseInt(checkResult.rows[0].count, 10);
+
+    if (count === 0) {
+      return responseHandler(
+        res,
+        404,
+        false,
+        `No records found to delete in ${tableName}`
+      );
+    }
+
+    // Delete records
+    let deleteQuery;
+    let deleteParams = [];
+
+    if (field && fieldValue !== null) {
+      deleteQuery = `DELETE FROM ${tableName} WHERE ${field} = $1`;
+      deleteParams.push(fieldValue);
+    } else {
+      deleteQuery = `DELETE FROM ${tableName}`;
+    }
+
+    await pool.query(deleteQuery, deleteParams);
 
     return responseHandler(
       res,
@@ -207,7 +252,6 @@ exports.deleteAll = async (
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
-
 
 exports.createRecord = async (
   tableName,
@@ -271,3 +315,88 @@ exports.updateRecord = async (
     return { error: true, status: 500, message: "Internal Server Error" };
   }
 };
+exports.search = async (
+  req,
+  res,
+  tableName,
+  searchFields,
+  defaultSortField = "id",
+  join = "",
+  joinFields = "",
+  excludeFields = []
+) => {
+  const searchTerm = req.query.query || "";
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const sortField = req.query.sortField || defaultSortField;
+  const sortOrder = req.query.sortOrder || "desc";
+  const offset = (page - 1) * limit;
+  const searchQuery = `%${searchTerm}%`; // Partial match
+
+  try {
+    // Construct the WHERE clause for searching
+    const searchConditions = searchFields
+      .map((field, index) => `${field} ILIKE $${index + 1}`)
+      .join(" OR ");
+
+    // Constructing SELECT fields
+    let selectFields = `${tableName}.*`;
+    if (tableName === "users") {
+      // If the table is 'users', exclude specified fields
+      selectFields = (
+        await pool.query(
+          `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+          [tableName]
+        )
+      ).rows
+        .map((row) => row.column_name)
+        .filter((column) => !excludeFields.includes(column))
+        .map((column) => `${tableName}.${column}`)
+        .join(", ");
+    }
+    if (join && joinFields) {
+      selectFields += `, ${joinFields}`;
+    }
+
+    // Main search query
+    let sqlQuery = `
+      SELECT ${selectFields} FROM ${tableName} ${join}
+      WHERE ${searchConditions}
+      ORDER BY ${sortField} ${sortOrder}
+      LIMIT $${searchFields.length + 1} OFFSET $${searchFields.length + 2};
+    `;
+
+    // Query for total count
+    let countQuery = `
+      SELECT COUNT(*) FROM ${tableName} ${join}
+      WHERE ${searchConditions};
+    `;
+
+    // Execute the search query
+    const result = await pool.query(sqlQuery, [
+      ...searchFields.map(() => searchQuery),
+      limit,
+      offset,
+    ]);
+
+    // Execute the count query
+    const countResult = await pool.query(
+      countQuery,
+      searchFields.map(() => searchQuery)
+    );
+    const totalItems = parseInt(countResult.rows[0].count, 10);
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return responseHandler(res, 200, true, "Search results", {
+      totalItems,
+      totalPages,
+      currentPage: page,
+      itemsPerPage: limit,
+      results: result.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
+
