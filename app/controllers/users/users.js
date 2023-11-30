@@ -22,6 +22,7 @@ const { JWT_SECRET } = require("../../constants/constants");
 const sendOtp = require("../../utils/sendOTP");
 
 // TODO : Make sure don't get the deactivated users
+// TODO : Display the error when deactivated users trying to sign up or login
 
 exports.create = async (req, res) => {
   const { email, password, device_id, type, facebook_access_token } = req.body;

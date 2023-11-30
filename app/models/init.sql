@@ -90,7 +90,6 @@ CREATE TABLE IF NOT EXISTS driver_rates(
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
-
 CREATE TABLE IF NOT EXISTS rides(
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,7 +105,7 @@ CREATE TABLE IF NOT EXISTS rides(
   -- City in which the route is located
   route_miles NUMERIC,
   -- Distance of the route in miles
-  ride_date DATE,
+  ride_date TIMESTAMP WITH TIME ZONE,
   -- Date of the ride
   time_to_pickup TIME,
   -- Time to pick up passengers
@@ -121,6 +120,14 @@ CREATE TABLE IF NOT EXISTS rides(
   return_ride_status BOOLEAN DEFAULT FALSE,
   -- Return ride status
   current_passenger_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS search_ride_notifications(
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pickup_location POINT,
+  drop_off_location POINT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

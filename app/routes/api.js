@@ -10,6 +10,7 @@ const driver_rates = require("./driver_rates/driver_rates");
 const vehicle_colors = require("./vehicle_colors/vehicle_colors");
 const rides = require("./rides/rides");
 const vehicle_types = require("./vehicle_types/vehicle_types");
+const notifications = require("./notifications/search_ride_notifications");
 
 router.use("/users", users);
 router.use("/vehicles_details", vehicles_details);
@@ -22,5 +23,6 @@ router.use("/driver_rates", driver_rates);
 router.use("/vehicle_colors", vehicle_colors);
 router.use("/rides", rides);
 router.use("/vehicle_types", vehicle_types);
+router.use("/notifications/search_ride", notifications);
 
 module.exports = router;

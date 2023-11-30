@@ -6,6 +6,7 @@ const { responseHandler } = require("../../utils/commonResponse");
 const { createRecord } = require("../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../utils/dbValidations");
 const { pool } = require("../../config/db.config");
+const { COORDINATE_THRESHOLD } = require("../../constants/constants");
 
 exports.publishRides = async (req, res) => {
   const {
@@ -69,69 +70,100 @@ exports.publishRides = async (req, res) => {
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
+
+
+
 exports.search = async (req, res) => {
   try {
-    const { leave_location, going_location } = req.query;
+    const {
+      pickup_location,
+      drop_off_location,
+      ride_date,
+      max_passengers,
+      max_price,
+    } = req.query;
 
-    // Parse the leave_location and going_location values
-    const [leave_location_latitude, leave_location_longitude] = leave_location
-      .split(",")
-      .map(parseFloat);
-    const [going_location_latitude, going_location_longitude] = going_location
-      .split(",")
-      .map(parseFloat);
-
-    // Perform validation and sanitize inputs as needed.
-
-    const proximityRadius = 50; // Define the maximum radius in miles
-
-    // Fetch all rides from the database (you may want to limit the query based on date_of_ride, seats, and price_offer)
-
-    const allRidesQuery = `
-      SELECT * FROM rides;
-    `;
-
+    // Fetch all rides
+    const allRidesQuery = `SELECT * FROM rides;`;
     const allRidesResult = await pool.query(allRidesQuery);
     const allRides = allRidesResult.rows;
 
-    // Calculate the distance between each ride's pickup/drop-off location and the leave and going locations
-    const nearbyRides = allRides.filter((ride) => {
-      const ridePickupLat = parseFloat(ride.pickup_location.x);
-      const ridePickupLong = parseFloat(ride.pickup_location.y);
-      const rideDropOffLat = parseFloat(ride.drop_off_location.x);
-      const rideDropOffLong = parseFloat(ride.drop_off_location.y);
+    const someRadius = 50;
 
-      const leaveLocationDistance = calculateDistance(
-        leave_location_latitude,
-        leave_location_longitude,
-        ridePickupLat,
-        ridePickupLong
-      );
+    const filteredRides = allRides.filter((ride) => {
+      let matchesCriteria = true;
 
-      const goingLocationDistance = calculateDistance(
-        going_location_latitude,
-        going_location_longitude,
-        rideDropOffLat,
-        rideDropOffLong
-      );
+      // Inside your filter function
+      if (pickup_location) {
+        const [pickupLat, pickupLong] = pickup_location
+          .split(",")
+          .map(parseFloat);
+        const ridePickupLat = parseFloat(ride.pickup_location.x);
+        const ridePickupLong = parseFloat(ride.pickup_location.y);
 
-      // Check if either pickup or drop-off location is within proximity
-      return (
-        leaveLocationDistance <= proximityRadius ||
-        goingLocationDistance <= proximityRadius
-      );
+        matchesCriteria =
+          matchesCriteria &&
+          Math.abs(ridePickupLat - pickupLat) < COORDINATE_THRESHOLD &&
+          Math.abs(ridePickupLong - pickupLong) < COORDINATE_THRESHOLD;
+      }
+
+      if (drop_off_location && matchesCriteria) {
+        const [dropOffLat, dropOffLong] = drop_off_location
+          .split(",")
+          .map(parseFloat);
+        const rideDropOffLat = parseFloat(ride.drop_off_location.x);
+        const rideDropOffLong = parseFloat(ride.drop_off_location.y);
+
+        // Debug log
+        console.log(
+          `Comparing Drop-off: (${dropOffLat}, ${dropOffLong}) with (${rideDropOffLat}, ${rideDropOffLong})`
+        );
+
+        matchesCriteria =
+          matchesCriteria &&
+          Math.abs(rideDropOffLat - dropOffLat) < COORDINATE_THRESHOLD &&
+          Math.abs(rideDropOffLong - dropOffLong) < COORDINATE_THRESHOLD;
+      }
+
+
+      if (ride_date && matchesCriteria) {
+        matchesCriteria =
+          matchesCriteria && ride.ride_date.toISOString() === ride_date;
+      }
+
+      if (max_passengers && matchesCriteria) {
+        matchesCriteria =
+          matchesCriteria &&
+          ride.max_passengers === parseInt(max_passengers, 10);
+      }
+
+      if (max_price && matchesCriteria) {
+        matchesCriteria =
+          matchesCriteria && ride.price_per_seat <= parseFloat(max_price);
+      }
+
+      return matchesCriteria;
     });
 
-    res.json(nearbyRides);
+    return responseHandler(
+      res,
+      201,
+      true,
+      "Ride search successfully!",
+      filteredRides
+    );
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
 
-// Function to calculate the distance between two sets of latitude and longitude coordinates
+function isValidCoordinates(lat, long) {
+  return lat >= -90 && lat <= 90 && long >= -180 && long <= 180;
+}
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of the Earth in kilometers
+  const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
   const a =
@@ -141,7 +173,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c * 0.621371; // Convert distance to miles
+  const distance = R * c * 0.621371;
   return distance;
 }
 

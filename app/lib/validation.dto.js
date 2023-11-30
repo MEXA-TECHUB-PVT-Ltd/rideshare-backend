@@ -135,13 +135,15 @@ exports.publishRidesSchema = Joi.object({
   pickup_location: Joi.object({
     latitude: Joi.number().required(),
     longitude: Joi.number().required(),
-    address: Joi.string().required(),
+    address: Joi.string().optional(),
   }).required(),
   drop_off_location: Joi.object({
     latitude: Joi.number().required(),
     longitude: Joi.number().required(),
-    address: Joi.string().required(),
+    address: Joi.string().optional(),
   }).required(),
+  pickup_address: Joi.string().required(),
+  drop_off_address: Joi.string().required(),
   tolls: Joi.boolean(),
   route_time: Joi.string().required(),
   city_of_route: Joi.string().required(),
@@ -156,3 +158,33 @@ exports.publishRidesSchema = Joi.object({
 });
 
 
+// notifications
+// search notifications handling on new ride created on same data
+
+exports.searchNotificationsSchema = Joi.object({
+  email: Joi.string().email().required(),
+  pickup_location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+    address: Joi.string().optional(),
+  }).required(),
+  drop_off_location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+    address: Joi.string().optional(),
+  }).required(),
+});
+exports.updateSearchNotificationsSchema = Joi.object({
+  id: Joi.number().required(),
+  email: Joi.string().email().required(),
+  pickup_location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+    address: Joi.string().optional(),
+  }).required(),
+  drop_off_location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+    address: Joi.string().optional(),
+  }).required(),
+});

@@ -1,4 +1,4 @@
-const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema } = require("../lib/validation.dto");
+const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema } = require("../lib/validation.dto");
 
 
 //  ?? user module
@@ -365,6 +365,40 @@ exports.validateCreateVT = (req, res, next) => {
 };
 exports.validateUpdateVT = (req, res, next) => {
   const { error } = updateVTSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+
+// search notifications 
+exports.validateSearchNotifications = (req, res, next) => {
+  const { error } = searchNotificationsSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateUpdateSearchNotifications = (req, res, next) => {
+  const { error } = updateSearchNotificationsSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details
