@@ -16,9 +16,13 @@ const {
   getSingle,
   deleteSingle,
   deleteAll,
+  search,
 } = require("../../utils/dbHeplerFunc");
 const { JWT_SECRET } = require("../../constants/constants");
 const sendOtp = require("../../utils/sendOTP");
+
+// TODO : Make sure don't get the deactivated users
+// TODO : Display the error when deactivated users trying to sign up or login
 
 exports.create = async (req, res) => {
   const { email, password, device_id, type, facebook_access_token } = req.body;
@@ -297,12 +301,14 @@ exports.updatePassword = async (req, res) => {
 };
 
 exports.getAll = async (req, res) => getAll(req, res, "users");
-exports.getAllBlockUsers = async (req, res) => getAll(req, res, "users", "id", "*", {block_status: true});
-
+exports.getAllBlockUsers = async (req, res) =>
+  getAll(req, res, "users", "id", "*", { block_status: true });
 
 exports.get = async (req, res) => getSingle(req, res, "users");
 exports.delete = async (req, res) => deleteSingle(req, res, "users");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "users");
+exports.search = async (req, res) =>
+  search(req, res, "users", ["first_name", "email"], "id", "", "",  ["password", "otp"]);
 
 exports.updateBlockStatus = async (req, res) => {
   const { id, block_status } = req.body;
@@ -377,26 +383,5 @@ exports.updateDeactivateStatus = async (req, res) => {
       status: false,
       message: err.message,
     });
-  }
-};
-
-exports.search = async (req, res) => {
-  const { term } = req.query;
-
-  try {
-    const sqlQuery = `
-      SELECT name, email FROM users
-      WHERE name ILIKE $1 OR email ILIKE $1
-      LIMIT 10;
-    `;
-
-    const searchQuery = `%${term}%`; // Partial match
-
-    const result = await pool.query(sqlQuery, [searchQuery]);
-
-    return responseHandler(res, 200, true, "Search results", result.rows);
-  } catch (error) {
-    console.error(error);
-    return responseHandler(res, 500, false, "Internal Server Error");
   }
 };

@@ -31,6 +31,7 @@ router.put(
 router.get('/getAll', queryValidation, controller.getAll);
 router.get('/getAllBlockUsers', queryValidation, controller.getAllBlockUsers);
 router.get('/get/:id', controller.get);
+router.get("/search", queryValidation, controller.search);
 router.delete("/delete/:id", controller.delete);
 router.delete('/deleteAll', controller.deleteAll);
 // router.get("/search", validateUsersSearchTerm, controller.search);
