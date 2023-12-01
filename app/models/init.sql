@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS driver_rates(
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
 CREATE TABLE IF NOT EXISTS rides(
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -121,6 +122,8 @@ CREATE TABLE IF NOT EXISTS search_ride_notifications(
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   pickup_location POINT,
   drop_off_location POINT,
+  drop_off_address TEXT,
+  pickup_address TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

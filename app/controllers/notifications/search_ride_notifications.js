@@ -15,6 +15,8 @@ exports.create = async (req, res) => {
     email,
     pickup_location: { latitude: pickupLat, longitude: pickupLong },
     drop_off_location: { latitude: dropOffLat, longitude: dropOffLong },
+    drop_off_address,
+    pickup_address,
   } = req.body;
 
   try {
@@ -31,6 +33,8 @@ exports.create = async (req, res) => {
       user_id,
       pickup_location: pickupPoint,
       drop_off_location: dropOffPoint,
+      drop_off_address,
+      pickup_address,
     };
     const result = await createRecord(
       "search_ride_notifications",
@@ -60,6 +64,8 @@ exports.update = async (req, res) => {
     email,
     pickup_location: { latitude: pickupLat, longitude: pickupLong },
     drop_off_location: { latitude: dropOffLat, longitude: dropOffLong },
+    drop_off_address,
+    pickup_address,
   } = req.body;
 
   try {
@@ -76,6 +82,8 @@ exports.update = async (req, res) => {
       user_id,
       pickup_location: pickupPoint,
       drop_off_location: dropOffPoint,
+      drop_off_address,
+      pickup_address,
     };
     const result = await updateRecord(
       "search_ride_notifications",

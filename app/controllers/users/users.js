@@ -1,6 +1,8 @@
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const ejs = require("ejs");
+const path = require("path");
 // project files directories
 const { pool } = require("../../config/db.config");
 const {
@@ -22,6 +24,7 @@ const {
 const sendEmail = require("../../lib/sendEmail");
 const { JWT_SECRET } = require("../../constants/constants");
 const sendOtp = require("../../utils/sendOTP");
+const urls = require("../../utils/emailImages");
 
 // TODO : Make sure don't get the deactivated users
 // TODO : Display the error when deactivated users trying to sign up or login
@@ -75,20 +78,90 @@ exports.create = async (req, res) => {
     if (!newUser) {
       return responseHandler(res, 500, false, "Error while creating user");
     }
-
-    await sendEmail(
-      email,
-      "Sign Up Verification",
-      `Thanks for signing up. Your code to verify is: ${otp}`
+    // Render the EJS template to a string
+    const emailTemplatePath = path.join(
+      __dirname,
+      "..",
+      "..",
+      "templates",
+      "signup.ejs"
     );
+    const dataForEjs = {
+      email: email,
+    };
 
-    return responseHandler(
-      res,
-      201,
-      true,
-      "User created successfully! please verify your email",
-      newUser
-    );
+    ejs.renderFile(emailTemplatePath, dataForEjs, async (err, htmlContent) => {
+      if (err) {
+        console.log(err); // Handle error appropriately
+        return res.status(500).json({
+          status: false,
+          message: "Error rendering email template",
+        });
+      }
+
+      try {
+        // Use the rendered HTML content for the email
+        const emailSent = await sendEmail(
+          email,
+          "Sign Up Verification",
+          htmlContent
+        );
+
+        // Second email content for email verification
+        const verificationEmailTemplatePath = path.join(
+          __dirname,
+          "..",
+          "..",
+          "templates",
+          "verificationEmail.ejs"
+        );
+
+        const verificationDataForEjs = {
+          email: email,
+          verificationCode: otp,
+          logo: urls.logo,
+          facebook: urls.facebook,
+          twitter: urls.twitter,
+          instagram: urls.instagram,
+        };
+
+        ejs.renderFile(
+          verificationEmailTemplatePath,
+          verificationDataForEjs,
+          async (err, verificationHtmlContent) => {
+            if (err) {
+              console.error(err);
+              return responseHandler(
+                res,
+                500,
+                false,
+                "Error rendering email verification template"
+              );
+            }
+            await sendEmail(
+              email,
+              "Verify Your Email",
+              verificationHtmlContent
+            );
+          }
+        );
+
+        if (emailSent.success) {
+          responseHandler(
+            res,
+            201,
+            true,
+            "User created successfully! Please verify your email",
+            newUser
+          );
+        } else {
+          responseHandler(res, 500, false, emailSent.message);
+        }
+      } catch (sendEmailError) {
+        console.error(sendEmailError);
+        responseHandler(res, 500, false, "Error sending verification email");
+      }
+    });
   } catch (error) {
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
@@ -138,14 +211,8 @@ exports.signIn = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const {
-    id,
-    last_name,
-    first_name,
-    date_of_birth,
-    gender,
-    profile_image_id,
-  } = req.body;
+  const { id, last_name, first_name, date_of_birth, gender, profile_image_id } =
+    req.body;
 
   try {
     const user = await checkUserExists("users", "id", id);
@@ -162,15 +229,19 @@ exports.update = async (req, res) => {
     };
 
     // Call the update function
-    const updatedUser = await updateRecord("users", userData, ["password", "otp"], {
-      column: "id",
-      value: id,
-    });
+    const updatedUser = await updateRecord(
+      "users",
+      userData,
+      ["password", "otp"],
+      {
+        column: "id",
+        value: id,
+      }
+    );
 
     if (!updatedUser) {
       return responseHandler(res, 500, false, "Error while updating user");
     }
-
 
     return responseHandler(
       res,

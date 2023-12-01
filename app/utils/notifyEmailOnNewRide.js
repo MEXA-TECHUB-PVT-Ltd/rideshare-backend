@@ -1,6 +1,9 @@
+const { pool } = require("../config/db.config");
 const sendEmail = require("../lib/sendEmail");
+const { responseHandler } = require("./commonResponse");
+const { checkUserExists } = require("./dbValidations");
 
-async function notifyUsersForNewRide(rideData) {
+exports.notifyUsersForNewRide = async (rideData) => {
   try {
     // Extract coordinates from ride data
     const { pickup_location, drop_off_location } = rideData;
@@ -15,10 +18,8 @@ async function notifyUsersForNewRide(rideData) {
       .split(",")
       .map(Number);
 
-    // Define a radius within which to search for notifications
-    const searchRadius = 50; // in miles or kilometers based on your calculateDistance function
+    const searchRadius = 50;
 
-    // Query to find matching notifications
     const notifications = await findMatchingNotifications(
       pickupLat,
       pickupLong,
@@ -28,16 +29,22 @@ async function notifyUsersForNewRide(rideData) {
     );
 
     // Send emails to users with matching notifications
-    notifications.forEach((notification) => {
-      const emailContent = createEmailContent(rideData, notification);
-      sendEmail(notification.user_email, "New Ride Available!", emailContent);
+    notifications.forEach(async (notification) => {
+      const response = await notification;
+      const { user_email: email, drop_off_address, pickup_address } = response;
+      // const emailContent = createEmailContent(rideData, notification);
+      await sendEmail(
+        email,
+        "New Ride Available!",
+        `Ride is now available for ${pickup_address} and ${drop_off_address}`
+      );
     });
 
     console.log(`Notified ${notifications.length} users about the new ride.`);
   } catch (error) {
     console.error("Error notifying users:", error);
   }
-}
+};
 
 async function findMatchingNotifications(
   pickupLat,
@@ -46,15 +53,74 @@ async function findMatchingNotifications(
   dropOffLong,
   searchRadius
 ) {
-  // Implement the logic to query your database and find notifications
-  // that fall within the searchRadius of the given pickup and drop-off coordinates.
-  // This will likely involve a spatial query if your database supports it.
-  // Return an array of notifications (including user email).
+  try {
+    const allNotificationsQuery = `SELECT * FROM search_ride_notifications;`;
+    const allNotificationsResult = await pool.query(allNotificationsQuery);
+    const allNotifications = allNotificationsResult.rows;
+
+    return allNotifications
+      .filter((notification) => {
+        const notificationPickupLat = parseFloat(
+          notification.pickup_location.x
+        );
+        const notificationPickupLong = parseFloat(
+          notification.pickup_location.y
+        );
+        const notificationDropOffLat = parseFloat(
+          notification.drop_off_location.x
+        );
+        const notificationDropOffLong = parseFloat(
+          notification.drop_off_location.y
+        );
+
+        const pickupDistance = calculateDistance(
+          pickupLat,
+          pickupLong,
+          notificationPickupLat,
+          notificationPickupLong
+        );
+        const dropOffDistance = calculateDistance(
+          dropOffLat,
+          dropOffLong,
+          notificationDropOffLat,
+          notificationDropOffLong
+        );
+
+        return (
+          pickupDistance <= searchRadius && dropOffDistance <= searchRadius
+        );
+      })
+      .map(async (notification) => {
+        const user = await checkUserExists("users", "id", notification.user_id);
+        if (user.rowCount === 0) {
+          console.error("user not found");
+        }
+        return {
+          user_email: user.rows[0].email,
+          ...notification,
+        };
+      });
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    return [];
+  }
 }
 
-function createEmailContent(rideData, notification) {
-  // Create and return the HTML content for the email based on rideData and notification details.
-  // This could include details like pickup and drop-off locations, time, price, etc.
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c * 0.621371;
+  return distance;
 }
 
-module.exports = notifyUsersForNewRide;
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
