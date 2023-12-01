@@ -9,12 +9,13 @@ const sendOtp = async (email, res, user_id) => {
     const update_otp_query = "UPDATE users SET otp = $1 WHERE id = $2";
     const updateOtp = await pool.query(update_otp_query, [otp, user_id]);
 
-    console.log("Generated OTP: ", otp);
-    console.log(user_id);
+    // console.log("Generated OTP: ", otp);
+    // console.log(user_id);
     const subject = "Verify Account";
     const htmlContent = "YOUR CODE IS " + otp;
 
     sendEmail(email, subject, htmlContent, res);
+    return otp;
   } catch (err) {
     console.log(err);
     res.status(500).json({

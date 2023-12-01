@@ -1,4 +1,4 @@
-const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema } = require("../lib/validation.dto");
+const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema } = require("../lib/validation.dto");
 
 
 //  ?? user module
@@ -52,6 +52,22 @@ exports.validateSignIn = (req, res, next) => {
 };
 exports.validateForgotPassword = (req, res, next) => {
   const { error } = forgotPasswordSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateVerifyCode = (req, res, next) => {
+  const { error } = verifyCodeSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details
