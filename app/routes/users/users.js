@@ -13,12 +13,14 @@ const {
   validateUpdatePassword,
   validateUpdateBlockStatus,
   validateUpdateDeactivateStatus,
+  validateVerifyCode,
 } = require("../../middlewares/bodyValidations");
 
 
 router.post('/create', validateUser, controller.create);
 router.post("/signIn", validateSignIn, controller.signIn);
 router.post("/forgotPassword", validateForgotPassword, controller.forgotPassword);
+router.post("/verify_otp", validateVerifyCode, controller.verify_otp);
 router.put('/update', validateUpdateUser, controller.update);
 router.put("/resetPassword", validateResetPassword, controller.resetPassword);
 router.put("/updatePassword", validateUpdatePassword, controller.updatePassword);

@@ -1,5 +1,6 @@
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 // project files directories
 const { pool } = require("../../config/db.config");
 const {
@@ -18,6 +19,7 @@ const {
   deleteAll,
   search,
 } = require("../../utils/dbHeplerFunc");
+const sendEmail = require("../../lib/sendEmail");
 const { JWT_SECRET } = require("../../constants/constants");
 const sendOtp = require("../../utils/sendOTP");
 
@@ -39,6 +41,7 @@ exports.create = async (req, res) => {
       device_id,
       type,
     };
+    const otp = crypto.randomInt(1000, 9999);
 
     if (type === "email") {
       if (!password) {
@@ -65,17 +68,25 @@ exports.create = async (req, res) => {
       return responseHandler(res, 400, false, "Invalid signup type");
     }
 
+    userData.otp = otp;
+
     const newUser = await insertIntoTable("users", userData, ["password"]);
 
     if (!newUser) {
       return responseHandler(res, 500, false, "Error while creating user");
     }
 
+    await sendEmail(
+      email,
+      "Sign Up Verification",
+      `Thanks for signing up. Your code to verify is: ${otp}`
+    );
+
     return responseHandler(
       res,
       201,
       true,
-      "User created successfully!",
+      "User created successfully! please verify your email",
       newUser
     );
   } catch (error) {
@@ -129,18 +140,11 @@ exports.signIn = async (req, res) => {
 exports.update = async (req, res) => {
   const {
     id,
-    device_id,
     last_name,
     first_name,
     date_of_birth,
     gender,
-    phone_no,
-    about,
-    postal_address,
-    complimentary_address,
-    driving_license_no,
-    license_expiry_date,
-    travel_preference,
+    profile_image_id,
   } = req.body;
 
   try {
@@ -150,22 +154,15 @@ exports.update = async (req, res) => {
     }
 
     let userData = {
-      device_id,
       last_name,
       first_name,
       date_of_birth,
       gender,
-      phone_no,
-      about,
-      postal_address,
-      complimentary_address,
-      driving_license_no,
-      license_expiry_date,
-      travel_preference,
+      profile_picture: profile_image_id,
     };
 
     // Call the update function
-    const updatedUser = await updateRecord("users", userData, ["password"], {
+    const updatedUser = await updateRecord("users", userData, ["password", "otp"], {
       column: "id",
       value: id,
     });
@@ -173,6 +170,7 @@ exports.update = async (req, res) => {
     if (!updatedUser) {
       return responseHandler(res, 500, false, "Error while updating user");
     }
+
 
     return responseHandler(
       res,
@@ -197,19 +195,53 @@ exports.forgotPassword = async (req, res) => {
 
     const user_id = user.rows[0].id;
 
-    sendOtp(email, res, user_id);
-
-    return res.status(200).json({
-      status: true,
-      message: "We've send the verification code on " + email,
-    });
+    const otp = await sendOtp(email, res, user_id);
+    return responseHandler(
+      res,
+      200,
+      true,
+      "We've send the verification code on " + email,
+      { otp }
+    );
   } catch (err) {
     console.log(err);
-    return res.status(500).json({
-      message: "Error Occurred",
-      status: false,
-      error: err.message,
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
+
+// verify code for both email and forgot password
+exports.verify_otp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await checkUserExists("users", "email", email);
+    if (user.rowCount === 0) {
+      return responseHandler(res, 404, false, "User not found");
+    }
+
+    const validOtp = await checkUserExists("users", "otp", otp);
+    if (validOtp.rowCount === 0) {
+      return responseHandler(res, 401, false, "Invalid OTP");
+    }
+
+    const userData = {
+      email_verified: true,
+      otp: null,
+    };
+    const updatedUser = await updateRecord("users", userData, ["password"], {
+      column: "email",
+      value: email,
     });
+    return responseHandler(
+      res,
+      200,
+      true,
+      "Otp verified successfully ",
+      updatedUser
+    );
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
 
@@ -308,7 +340,10 @@ exports.get = async (req, res) => getSingle(req, res, "users");
 exports.delete = async (req, res) => deleteSingle(req, res, "users");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "users");
 exports.search = async (req, res) =>
-  search(req, res, "users", ["first_name", "email"], "id", "", "",  ["password", "otp"]);
+  search(req, res, "users", ["first_name", "email"], "id", "", "", [
+    "password",
+    "otp",
+  ]);
 
 exports.updateBlockStatus = async (req, res) => {
   const { id, block_status } = req.body;
