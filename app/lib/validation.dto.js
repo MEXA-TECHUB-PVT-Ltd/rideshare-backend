@@ -177,6 +177,8 @@ exports.searchNotificationsSchema = Joi.object({
     longitude: Joi.number().required(),
     address: Joi.string().optional(),
   }).required(),
+  drop_off_address: Joi.string().required(),
+  pickup_address: Joi.string().required(),
 });
 exports.updateSearchNotificationsSchema = Joi.object({
   id: Joi.number().required(),
@@ -191,4 +193,6 @@ exports.updateSearchNotificationsSchema = Joi.object({
     longitude: Joi.number().required(),
     address: Joi.string().optional(),
   }).required(),
+  drop_off_address: Joi.string().required(),
+  pickup_address: Joi.string().required(),
 });
