@@ -12,14 +12,17 @@ exports.createUsersSchema = Joi.object({
     then: Joi.required(),
   }),
   device_id: Joi.string().required(),
+  role: Joi.string().optional().valid("user", "admin"),
 });
 exports.signInSchema = Joi.object({
   type: Joi.string().valid("email", "facebook").required(),
   email: Joi.string().email().required(),
   password: Joi.string().when("type", { is: "email", then: Joi.required() }),
+  device_id: Joi.string().required(),
+  role: Joi.string().optional().valid("user", "admin"),
   facebook_access_token: Joi.string().when("type", {
     is: "facebook",
-    then: Joi.required(),
+    then: Joi.optional(),
   }),
 });
 
@@ -31,6 +34,7 @@ exports.updateUsersSchema = Joi.object()
 
 exports.forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
+  role: Joi.string().optional().valid("user", "admin"),
 });
 exports.verifyCodeSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -161,6 +165,18 @@ exports.publishRidesSchema = Joi.object({
   return_ride_status: Joi.boolean(),
 });
 
+exports.joinRidesSchema = Joi.object({
+  user_id: Joi.number().required(),
+  ride_id: Joi.number().required(),
+});
+exports.updateStatusSchema = Joi.object({
+  id: Joi.number().required(),
+  status: Joi.string().required().valid("accepted", "rejected"),
+});
+exports.startRideSchema = Joi.object({
+  ride_id: Joi.number().required(),
+  ride_status: Joi.string().required(),
+});
 
 // notifications
 // search notifications handling on new ride created on same data
@@ -195,4 +211,48 @@ exports.updateSearchNotificationsSchema = Joi.object({
   }).required(),
   drop_off_address: Joi.string().required(),
   pickup_address: Joi.string().required(),
+});
+
+// fav riders
+exports.favRidersSchema = Joi.object({
+  user_id: Joi.number().required(),
+  rider_id: Joi.number().required(),
+});
+exports.updateFavRidersSchema = Joi.object({
+  id: Joi.number().required(),
+  user_id: Joi.number().required(),
+  rider_id: Joi.number().required(),
+});
+
+// contact us
+exports.contactSchema = Joi.object({
+  email: Joi.string().email().required(),
+  full_name: Joi.string().required(),
+  message: Joi.string().required(),
+});
+exports.updateContactSchema = Joi.object({
+  id: Joi.number().required(),
+  email: Joi.string().email().required(),
+  full_name: Joi.string().required(),
+  message: Joi.string().required(),
+});
+exports.updateStatusContactSchema = Joi.object({
+  id: Joi.number().required(),
+  status: Joi.string().required().valid("contacted", "dismissed"),
+});
+
+// notification_types
+exports.notificationTypesSchema = Joi.object({
+  name: Joi.string().required(),
+});
+exports.updateNotificationTypesSchema = Joi.object({
+  id: Joi.number().required(),
+  name: Joi.string().required(),
+});
+// rating
+exports.ratingSchema = Joi.object({
+  user_id: Joi.number().required(),
+  ride_id: Joi.number().required(),
+  rating: Joi.number().min(1).max(5).required(),
+  comment: Joi.string().required(),
 });

@@ -13,7 +13,7 @@ exports.getAll = async (
   req,
   res,
   tableName,
-  defaultSortField = "id",
+  defaultSortField = "created_at",
   fields = "*",
   additionalFilters = {},
   join = "",
