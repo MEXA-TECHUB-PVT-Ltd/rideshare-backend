@@ -21,7 +21,7 @@ const sendOtp = async (email, res, user_id) => {
     res.status(500).json({
       message: err.message,
       success: false,
-    });
+    }); 
   }
 };
 
