@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+    <!-- JavaScript will be added here -->
+  </head>
+  <body>
+    <h1>WebSocket Test</h1>
+    <button id="startRideButton">Start Ride</button>
+    <button id="pickupLocationButton">On Pickup Location</button>
+    <button id="completeRideButton">Complete Ride</button>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const socket = io("http://localhost:3025");
+
+        socket.on("connect", () => {
+          console.log("Connected to WebSocket server");
+        });
+
+        socket.on("rideStarted", (rideId) => {
+          console.log("Ride started with ID:", rideId);
+        });
+
+        socket.on("pickupLocationReached", (data) => {
+          console.log("Pickup location reached for ride ID:", data.ride_id);
+        });
+
+        socket.on("rideCompleted", (data) => {
+          console.log("Ride completed with ID:", data.ride_id);
+        });
+
+        // Start Ride button
+        document
+          .getElementById("startRideButton")
+          .addEventListener("click", () => {
+            socket.emit("startRide", { ride_id: 3, ride_status: "started" });
+            console.log("Start Ride event emitted");
+          });
+
+        // On Pickup Location button
+        document
+          .getElementById("pickupLocationButton")
+          .addEventListener("click", () => {
+            socket.emit("pickupLocationReached", { ride_id: 3, user_id: 1 });
+            console.log("Pickup Location event emitted");
+          });
+
+        // Complete Ride button
+        document
+          .getElementById("completeRideButton")
+          .addEventListener("click", () => {
+            socket.emit("rideCompleted", { ride_id: 3 });
+            console.log("Complete Ride event emitted");
+          });
+      });
+    </script>
+  </body>
+</html>

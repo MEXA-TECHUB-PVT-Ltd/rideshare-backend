@@ -8,6 +8,7 @@ const { pool } = require("../../config/db.config");
 const {
   checkUserExists,
   checkUserAlreadyExist,
+  checkAdmin,
 } = require("../../utils/dbValidations");
 const {
   responseHandler,
@@ -23,14 +24,15 @@ const {
 } = require("../../utils/dbHeplerFunc");
 const sendEmail = require("../../lib/sendEmail");
 const { JWT_SECRET } = require("../../constants/constants");
-const sendOtp = require("../../utils/sendOTP");
+const sendOtp = require("../../utils/sendOtp");
 const urls = require("../../utils/emailImages");
 
 // TODO : Make sure don't get the deactivated users
 // TODO : Display the error when deactivated users trying to sign up or login
 
 exports.create = async (req, res) => {
-  const { email, password, device_id, type, facebook_access_token } = req.body;
+  const { email, password, device_id, type, facebook_access_token, role } =
+    req.body;
 
   try {
     const userAlreadyExists = await checkUserAlreadyExist(email);
@@ -38,11 +40,14 @@ exports.create = async (req, res) => {
       return responseHandler(res, 409, false, "User already exists");
     }
 
+    const defaultRole = role ? role : "user";
+
     let hashedPassword;
     let userData = {
       email,
       device_id,
       type,
+      role: defaultRole,
     };
     const otp = crypto.randomInt(1000, 9999);
 
@@ -169,12 +174,22 @@ exports.create = async (req, res) => {
 };
 
 exports.signIn = async (req, res) => {
-  const { email, password, facebook_access_token, type } = req.body;
+  const { email, password, facebook_access_token, type, device_id, role } =
+    req.body;
+
+  const defaultRole = role ? role : "user";
 
   try {
-    const user = await checkUserExists("users", "email", email);
+    const user = await checkUserExists("users", "email", email, [
+      { role: defaultRole },
+    ]);
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(
+        res,
+        404,
+        false,
+        `${role === "admin" ? "Admin not found" : "User not found"}`
+      );
     }
 
     if (type === "email") {
@@ -203,6 +218,7 @@ exports.signIn = async (req, res) => {
     return responseHandler(res, 200, true, "Sign-in successful", {
       user: user.rows[0],
       token,
+      device_id,
     });
   } catch (error) {
     console.error(error);
@@ -213,19 +229,21 @@ exports.signIn = async (req, res) => {
 exports.update = async (req, res) => {
   const { id, last_name, first_name, date_of_birth, gender, profile_image_id } =
     req.body;
-
+  console.log(req.body);
   try {
     const user = await checkUserExists("users", "id", id);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
 
+    const profile_picture = profile_image_id;
+
     let userData = {
       last_name,
       first_name,
       date_of_birth,
       gender,
-      profile_picture: profile_image_id,
+      profile_picture,
     };
 
     // Call the update function
@@ -257,21 +275,31 @@ exports.update = async (req, res) => {
 };
 
 exports.forgotPassword = async (req, res) => {
-  const { email } = req.body;
+  const { email, role } = req.body;
+
+  const defaultRole = role ? role : "user";
   try {
-    const user = await checkUserExists("users", "email", email);
+    const user = await checkUserExists("users", "email", email, [
+      { role: defaultRole },
+    ]);
+
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(
+        res,
+        404,
+        false,
+        `${role.charAt(0).toUpperCase() + role.slice(1)} not found`
+      );
     }
 
     const user_id = user.rows[0].id;
-
     const otp = await sendOtp(email, res, user_id);
+
     return responseHandler(
       res,
       200,
       true,
-      "We've send the verification code on " + email,
+      `We've sent the verification code to ${email}`,
       { otp }
     );
   } catch (err) {
@@ -282,10 +310,12 @@ exports.forgotPassword = async (req, res) => {
 
 // verify code for both email and forgot password
 exports.verify_otp = async (req, res) => {
-  const { email, otp } = req.body;
-
+  const { email, otp, role } = req.body;
+  const defaultRole = role ? role : "user";
   try {
-    const user = await checkUserExists("users", "email", email);
+    const user = await checkUserExists("users", "email", email, [
+      { role: defaultRole },
+    ]);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
@@ -317,9 +347,12 @@ exports.verify_otp = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
-  const { email, new_password } = req.body;
+  const { email, new_password, role } = req.body;
+  const defaultRole = role ? role : "user";
   try {
-    const user = await checkUserExists("users", "email", email);
+    const user = await checkUserExists("users", "email", email, [
+      { role: defaultRole },
+    ]);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
@@ -354,9 +387,12 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.updatePassword = async (req, res) => {
-  const { email, old_password, new_password } = req.body;
+  const { email, old_password, new_password, role } = req.body;
+  const defaultRole = role ? role : "user";
   try {
-    const user = await checkUserExists("users", "email", email);
+    const user = await checkUserExists("users", "email", email, [
+      { role: defaultRole },
+    ]);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
