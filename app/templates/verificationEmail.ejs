@@ -1,47 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Email Verification</title>
-</head>
-<body style="background-color: #f4f4f4; font-family: Arial, sans-serif; color: #333333; margin: 0; padding: 0;">
-  <div style="text-align: center; padding: 50px;">
-    <div style="max-width: 600px; margin: auto; background-color: #ffffff; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-      
-      <!-- Header with Logo -->
-      <div style="background-color: #007bff; color: #ffffff; padding: 20px; text-align: center;">
-        <a href="" target="_blank">
-          <img src="<%= logo %>" alt="Ride Share Logo" style="max-width: 100px;">
-        </a>
-      </div>
-      
-      <div style="padding: 20px;">
-        <p>Thank you for choosing Ride Share as your trusted platform...</p>
-        
-        <!-- Verification Code Block -->
-        <div style="background-color: #000000; color: #ffffff; margin: 20px 0; padding: 20px;">
-          <h2 style="margin: 0;"><%= verificationCode %></h2> 
-        </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        color: #fff;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #00081b;
+      }
+      .header {
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .content {
+        margin: 20px 0;
+        text-align: center;
+        background-color: #fff;
+        padding: 10px;
+      }
+      .verification {
+        padding: 10px 20px;
+        width: auto; /* Adjusts width automatically based on content */
+        border: 2px solid #1b1464; /* Solid or more pronounced border */
+        border-radius: 10px;
+        border-style: dashed;
+        display: inline-block;
+        font-family: "Courier New", monospace; /* Monospaced font for better readability */
+        font-size: 20px; /* Larger font size */
+        font-weight: bold; /* Bold font */
+        text-align: center; /* Center align text */
+      }
 
-        <p>Please enter this code on the verification page to activate your account...</p>
-        <p>We look forward to serving you.</p>
+      .footer {
+        padding: 10px;
+        text-align: center;
+        font-size: 12px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 15px;
+        margin: 10px auto;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+      }
+      .mx-2 {
+        margin: 0 20px;
+      }
+      .color-black {
+        color: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <!-- Your logo goes here -->
+        <img
+          src="../../public/images/logo.png"
+          alt="Logo"
+          style="width: 80px"
+        />
+        <p id="currentDate"></p>
       </div>
-      
-      <!-- Social Media Links -->
-      <div style="background-color: #333333; color: #ffffff; padding: 20px; text-align: center;">
-        <a href="" target="_blank">
-          <img src="<%= facebook %>" alt="Facebook" style="max-width: 30px;">
-        </a>
-        <a href="" target="_blank">
-          <img src="<%= twitter %>" alt="Twitter" style="max-width: 30px;">
-        </a>
-        <a href="" target="_blank">
-          <img src="<%= instagram %>" alt="Instagram" style="max-width: 30px;">
-        </a>
-        <p>&copy; 2023 Ride Share. All rights reserved.</p>
+
+      <div class="content">
+        <h1 class="color-black">Email Verification</h1>
+        <p class="color-black">
+          Thank you for choosing Ride Share as your trusted platform. To ensure
+          the security of your account and to complete the registration process,
+          we need to verify your email address. Please find your unique
+          verification code below:
+        </p>
+        <!-- Verification Link -->
+        <div class="verification">
+          <strong class="color-black"> <%= verification_code %> </strong>
+        </div>
+        <p class="color-black">
+          Please enter this code on the verification page to activate your
+          account. If you didn't request this code, please ignore this email,
+          and your account will remain inactive. We look forward to serving you.
+        </p>
+      </div>
+
+      <div class="footer">
+        <img
+          src="../../public/images/logo.png"
+          alt="Logo"
+          style="width: 80px"
+        />
+        <p style="margin: 10px 0">
+          &copy; 2023 I can bring it. All right reserved
+        </p>
+        <!-- Social Media Icons -->
+        <div>
+          <img
+            src="../../public/images/ints.png"
+            alt="Instagram"
+            class="mx-2"
+          />
+          <img src="../../public/images/fb.png" alt="Facebook" class="mx-2" />
+          <img src="../../public/images/link.png" alt="LinkedIn" class="mx-2" />
+          <img
+            src="../../public/images/twiiter.png"
+            alt="Twitter"
+            class="mx-2"
+          />
+        </div>
       </div>
     </div>
-  </div>
-</body>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("currentDate").innerText =
+          new Date().toLocaleDateString();
+      });
+    </script>
+  </body>
 </html>

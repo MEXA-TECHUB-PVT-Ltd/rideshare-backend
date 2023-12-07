@@ -7,23 +7,19 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        color: #ffffff;
-        background-color: #f4f4f4;
         margin: 0;
         padding: 0;
-    }
-    .container {
+      }
+      .container {
         max-width: 600px;
         margin: 20px auto;
-        background: #000000;
         padding: 20px;
         border-radius: 5px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        color: #fff;
+        border-radius: 20px;
       }
       .header {
         background-color: #007bff;
-        color: #fff;
         padding: 10px 20px;
         border-radius: 5px 5px 0 0;
       }
@@ -37,57 +33,114 @@
         padding: 20px;
         text-align: center;
       }
+      .top-header {
+        background-color: #000;
+        border-radius: 20px;
+      }
       .feature-icon {
-        width: 50px;
-        height: 50px;
+        width: 150px;
+        height: 150px;
         margin-bottom: 10px;
+      }
+      .flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      .icon {
+        background-color: #fff;
+        padding: 10px;
+        border-radius: 10px;
+      }
+      .bg-black {
+        margin-top: 10px;
+        background-color: #000;
+        border-radius: 20px;
+        color: #fff;
+      }
+      .mx-2 {
+        margin: 0 20px;
       }
       /* Add more styles as needed */
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="header">
-        <h1>Welcome to Ride Share,</h1>
-      </div>
-
-      <div class="feature">
+      <img
+        src="../../public/images/logo.png"
+        alt="Publish Ride"
+        width="70px"
+        style="margin-bottom: 20px"
+      />
+      <div class="top-header feature">
         <img
-          src="publish_ride_icon.png"
+          src="../../public/images/Illustration.png"
           alt="Publish Ride"
           class="feature-icon"
         />
-        <h2>Publish Ride</h2>
-        <p>
-          With the "Publish Ride" feature, you can easily share your upcoming
-          journey with a wide audience.
-        </p>
+        <h2 style="color: #fff">Welcome to Ride Share!</h2>
+        <p style="color: #fff">We are so happy to have you.</p>
       </div>
 
-      <div class="feature">
-        <img src="join_ride_icon.png" alt="Join Ride" class="feature-icon" />
-        <h2>Join Ride</h2>
-        <p>
-          Seamlessly connect drivers offering rides with passengers seeking
-          cost-effective and eco-friendly transportation.
-        </p>
-      </div>
-
-      <div class="feature">
+      <h2 style="text-align: center">Our Best Features</h2>
+      <div class="feature flex bg-black">
         <img
-          src="add_driver_icon.png"
+          src="../../public/images/paper-plane.png"
           alt="Add Driver to Favorite"
-          class="feature-icon"
+          width="50"
+          class="icon"
         />
-        <h2>Add Driver to Favorite</h2>
-        <p>
-          Our "Add Driver to Favorites" feature is designed to provide you with
-          a seamless and convenient way to personalize your experience.
-        </p>
+        <div>
+          <h2>Publish Ride</h2>
+          <p>
+            With the "Publish Ride" feature, you can easily share your upcoming
+            journey with a wide audience. Whether you're planning a road trip, a
+            bike ride, or a thrilling adventure, this feature allows you to make
+            your travel plans public
+          </p>
+        </div>
+      </div>
+      <div class="feature flex bg-black">
+        <div>
+          <h2>Join Ride</h2>
+          <p>
+            Seamlessly connect drivers offering rides with passengers seeking
+            cost-effective and eco-friendly transportation, fostering community
+            and convenience.
+          </p>
+        </div>
+        <img
+          src="../../public/images/connect.png"
+          alt="Add Driver to Favorite"
+          width="50"
+          class="icon"
+        />
+      </div>
+      <div class="feature flex bg-black">
+        <img
+          src="../../public/images/favorite.png"
+          alt="Add Driver to Favorite"
+          width="50"
+          class="icon"
+        />
+        <div>
+          <h2>Add Driver to Favorite</h2>
+          <p>
+            Our "Add Driver to Favorites" feature is designed to provide you
+            with a seamless and convenient way to personalize your experience on
+            our platform. Whether you're a rideshare user, delivery recipient,
+            or simply want to remember specific drivers for future interactions
+          </p>
+        </div>
       </div>
 
       <div class="footer">
         <p>© 2023 Ride Share. All rights reserved.</p>
+        <img src="../../public/images/ints.png" alt="Instagram" class="mx-2" />
+        <img src="../../public/images/fb.png" alt="Facebook" class="mx-2" />
+        <img src="../../public/images/link.png" alt="LinkedIn" class="mx-2" />
+        <img src="../../public/images/twiiter.png" alt="Twitter" class="mx-2" />
         <p>
           If you have any questions, feel free to message us at
           RideShare@email.com.

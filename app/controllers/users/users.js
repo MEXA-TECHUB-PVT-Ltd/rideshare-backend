@@ -123,7 +123,7 @@ exports.create = async (req, res) => {
 
         const verificationDataForEjs = {
           email: email,
-          verificationCode: otp,
+          verification_code: otp,
           logo: urls.logo,
           facebook: urls.facebook,
           twitter: urls.twitter,
