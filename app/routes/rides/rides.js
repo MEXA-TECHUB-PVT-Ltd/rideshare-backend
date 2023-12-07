@@ -10,6 +10,10 @@ router.put("/update_status", validateUpdateStatus, controller.updateStatus);
 router.put("/start_ride", validateStartRide, controller.startRide);
 router.get("/search", controller.search);
 router.get("/get/:id", controller.get);
+router.get(
+  "/getAllRideStatusByUsers/:user_id/:status",
+  controller.getAllRideByStatus
+);
 router.get("/get_ride_joiners/:ride_id", controller.getRideJoiners);
 router.get("/get_all_publish_by_user/:user_id", controller.getAllPublishByUser);
 router.get("/get_ride_joiners_by_user/:user_id", controller.getAllJoinedByUser);

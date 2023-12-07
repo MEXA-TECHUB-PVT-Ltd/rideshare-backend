@@ -174,14 +174,13 @@ exports.create = async (req, res) => {
 };
 
 exports.signIn = async (req, res) => {
-  const { email, password, facebook_access_token, type, device_id, role } =
-    req.body;
+  const { email, password, type, device_id, role } = req.body;
 
   const defaultRole = role ? role : "user";
 
   try {
     const user = await checkUserExists("users", "email", email, [
-      { role: defaultRole },
+      { column: "role", value: defaultRole },
     ]);
     if (user.rowCount === 0) {
       return responseHandler(
@@ -201,14 +200,14 @@ exports.signIn = async (req, res) => {
         return responseHandler(res, 401, false, "Invalid credentials");
       }
     } else {
-      if (facebook_access_token !== user.facebook_access_token) {
-        return responseHandler(res, 401, false, "Invalid Facebook token");
-      }
+      // Handle third-party authentication, e.g., Google
+      // Assuming the email has already been validated by Google and you trust it
+      // No password check needed here
     }
 
     const payload = {
-      userId: user.id,
-      email: user.email,
+      userId: user.rows[0].id, // Ensure you are referencing the correct property
+      email: user.rows[0].email,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
@@ -227,46 +226,157 @@ exports.signIn = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const { id, last_name, first_name, date_of_birth, gender, profile_image_id } =
-    req.body;
-  console.log(req.body);
+  const {
+    id,
+    last_name,
+    first_name,
+    date_of_birth,
+    gender,
+    profile_image_id,
+    complementary_address,
+    post_address,
+    phone,
+    about,
+    insurance_status,
+    location,
+    chattiness_preference_id,
+    music_preference_id,
+    smoking_preference_id,
+    pets_preference_id,
+  } = req.body;
+
   try {
-    const user = await checkUserExists("users", "id", id);
-    if (user.rowCount === 0) {
+    const userExists = await checkUserExists("users", "id", id);
+    if (userExists.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
 
-    const profile_picture = profile_image_id;
+    let userData = {};
+    if (last_name !== undefined) userData.last_name = last_name;
+    if (first_name !== undefined) userData.first_name = first_name;
+    if (date_of_birth !== undefined) {
+      userData.date_of_birth = new Date(date_of_birth)
+        .toISOString()
+        .split("T")[0];
+    }
+    if (complementary_address !== undefined)
+      userData.complementary_address = complementary_address;
+    if (post_address !== undefined) userData.post_address = post_address;
+    if (phone !== undefined) userData.phone = phone;
+    if (about !== undefined) userData.about = about;
+    if (gender !== undefined) userData.gender = gender;
+    if (pets_preference_id !== undefined)
+      userData.pets_preference_id = pets_preference_id;
+    if (smoking_preference_id !== undefined)
+      userData.smoking_preference_id = smoking_preference_id;
+    if (music_preference_id !== undefined)
+      userData.music_preference_id = music_preference_id;
+    if (chattiness_preference_id !== undefined)
+      userData.chattiness_preference_id = chattiness_preference_id;
+    if (insurance_status !== undefined)
+      userData.insurance_status = insurance_status;
+    if (location !== undefined) userData.location = location;
+    if (profile_image_id !== undefined)
+      userData.profile_picture = profile_image_id;
 
-    let userData = {
-      last_name,
-      first_name,
-      date_of_birth,
-      gender,
-      profile_picture,
-    };
+    if (Object.keys(userData).length === 0) {
+      return responseHandler(res, 400, false, "No update information provided");
+    }
 
-    // Call the update function
-    const updatedUser = await updateRecord(
-      "users",
-      userData,
-      ["password", "otp"],
-      {
-        column: "id",
-        value: id,
-      }
+    await updateRecord("users", userData, ["password", "otp", "admin_name"], {
+      column: "id",
+      value: id,
+    });
+
+    const result = await pool.query(
+      `SELECT u.*, up.file_name, up.file_type, up.mime_type 
+       FROM users u
+       LEFT JOIN uploads up ON u.profile_picture = up.id
+       WHERE u.id = $1`,
+      [id]
     );
 
-    if (!updatedUser) {
-      return responseHandler(res, 500, false, "Error while updating user");
+    if (result.rowCount === 0) {
+      return responseHandler(
+        res,
+        500,
+        false,
+        "Error while retrieving updated user data"
+      );
     }
+
+    delete result.rows[0].password;
+    delete result.rows[0].otp;
+    delete result.rows[0].admin_name;
 
     return responseHandler(
       res,
       200,
       true,
       "User updated successfully!",
-      updatedUser
+      result.rows[0]
+    );
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
+
+exports.nullifyUserPreference = async (req, res) => {
+  const {
+    user_id,
+    chattiness_preference_id,
+    music_preference_id,
+    smoking_preference_id,
+    pets_preference_id,
+  } = req.body;
+
+  try {
+    const userExists = await checkUserExists("users", "id", user_id);
+    if (userExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "User not found");
+    }
+
+    const user = userExists.rows[0];
+    const preferenceType = chattiness_preference_id
+      ? "chattiness_preference_id"
+      : music_preference_id
+      ? "music_preference_id"
+      : smoking_preference_id
+      ? "smoking_preference_id"
+      : "pets_preference_id";
+
+    // Check if the user has the preference set
+    if (user[preferenceType] === null) {
+      return responseHandler(
+        res,
+        400,
+        false,
+        `No ${preferenceType} preference set for user to nullify.`
+      );
+    }
+
+    const updateQuery = `UPDATE users SET ${preferenceType} = NULL WHERE id = $1 RETURNING *`;
+    const result = await pool.query(updateQuery, [user_id]);
+
+    if (result.rowCount === 0) {
+      return responseHandler(
+        res,
+        404,
+        false,
+        `User not found with id ${user_id}`
+      );
+    }
+    delete result.rows[0].password;
+    delete result.rows[0].otp;
+    delete result.rows[0].admin_name;
+
+    return responseHandler(
+      res,
+      200,
+      true,
+      `User's ${preferenceType} preference nullified successfully!`,
+      result.rows[0]
     );
   } catch (error) {
     console.error(error);
@@ -440,14 +550,136 @@ exports.updatePassword = async (req, res) => {
 };
 
 exports.getAll = async (req, res) => getAll(req, res, "users");
+
 exports.getAllBlockUsers = async (req, res) =>
-  getAll(req, res, "users", "id", "*", { block_status: true });
+  getAll(req, res, "users", "created_at", "*", { block_status: true });
+
+exports.getAllUserByInsuranceStatus = async (req, res) => {
+  const { insurance_status } = req.params;
+  return getAll(req, res, "users", "created_at", "*", {
+    insurance_status: insurance_status,
+  });
+};
+
+exports.getAllUsersWithDetails = async (req, res) => {
+  const fields = `
+  users.*,
+  (SELECT json_build_object(
+    'id', uploads.id,
+    'file_name', uploads.file_name,
+    'file_type', uploads.file_type,
+    'mime_type', uploads.mime_type
+  ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
+(SELECT json_agg(json_build_object(
+    'id', preferences.id,
+    'type', preferences.type,
+    'icon', (SELECT json_build_object(
+        'id', uploads.id,
+        'file_name', uploads.file_name,
+        'file_type', uploads.file_type,
+        'mime_type', uploads.mime_type
+      ) FROM uploads WHERE uploads.id = preferences.icon),
+    'prompt', preferences.prompt
+  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
+(SELECT json_agg(json_build_object(
+    'id', vehicles_details.id,
+    'user_id', vehicles_details.user_id,
+    'license_plate_no', vehicles_details.license_plate_no,
+    'vehicle_brand', vehicles_details.vehicle_brand,
+    'vehicle_model', vehicles_details.vehicle_model,
+    'registration_no', vehicles_details.registration_no,
+    'driving_license_no', vehicles_details.driving_license_no,
+    'license_expiry_date', vehicles_details.license_expiry_date,
+    'personal_insurance', vehicles_details.personal_insurance,
+    'vehicle_type', (SELECT json_build_object(
+        'id', vehicle_types.id,
+        'name', vehicle_types.name
+      ) FROM vehicle_types WHERE vehicle_types.id = vehicles_details.vehicle_type_id),
+    'vehicle_color', (SELECT json_build_object(
+        'id', vehicle_colors.id,
+        'name', vehicle_colors.name,
+        'code', vehicle_colors.code
+      ) FROM vehicle_colors WHERE vehicle_colors.id = vehicles_details.vehicle_color_id),
+    'created_at', vehicles_details.created_at,
+    'updated_at', vehicles_details.updated_at
+  )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
+  (SELECT json_agg(json_build_object(
+    'id', rides.id,
+    'pickup_location', rides.pickup_location,
+    'drop_off_location', rides.drop_off_location,
+    'ride_date', rides.ride_date,
+    'ride_status', rides.ride_status,
+    'caution_details', (SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'uploaded_icon_id', cautions.uploaded_icon_id
+    )) FROM unnest(rides.cautions) AS caution_id LEFT JOIN cautions ON cautions.id = caution_id)
+  )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+`;
+
+  const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
+
+  return getAll(
+    req,
+    res,
+    "users",
+    "created_at",
+    fields,
+    {}, // No additional filters
+    join
+  );
+};
 
 exports.get = async (req, res) => getSingle(req, res, "users");
+exports.getUserWithDetails = async (req, res) => {
+  const fields = `
+    users.*,
+    (SELECT json_build_object(
+      'id', uploads.id,
+      'file_name', uploads.file_name,
+      'file_type', uploads.file_type,
+      'mime_type', uploads.mime_type
+    ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
+(SELECT json_agg(json_build_object(
+    'id', preferences.id,
+    'type', preferences.type,
+    'icon', (SELECT json_build_object(
+        'id', uploads.id,
+        'file_name', uploads.file_name,
+        'file_type', uploads.file_type,
+        'mime_type', uploads.mime_type
+      ) FROM uploads WHERE uploads.id = preferences.icon),
+    'prompt', preferences.prompt
+  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
+    (SELECT json_agg(json_build_object(
+      'id', vehicles_details.id,
+      'user_id', vehicles_details.user_id,
+      'license_plate_no', vehicles_details.license_plate_no,
+      'vehicle_brand', vehicles_details.vehicle_brand,
+      'vehicle_model', vehicles_details.vehicle_model,
+      'registration_no', vehicles_details.registration_no,
+      'driving_license_no', vehicles_details.driving_license_no,
+      'license_expiry_date', vehicles_details.license_expiry_date,
+      'personal_insurance', vehicles_details.personal_insurance
+    )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
+    (SELECT json_agg(json_build_object(
+      'id', rides.id,
+      'pickup_location', rides.pickup_location,
+      'ride_date', rides.ride_date,
+      'ride_status', rides.ride_status
+    )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+  `;
+
+  const join = ``;
+
+  return getSingle(req, res, "users", "id", fields, join);
+};
+
 exports.delete = async (req, res) => deleteSingle(req, res, "users");
+
 exports.deleteAll = async (req, res) => deleteAll(req, res, "users");
 exports.search = async (req, res) =>
-  search(req, res, "users", ["first_name", "email"], "id", "", "", [
+  search(req, res, "users", ["first_name", "email"], "created_at", "", "", [
     "password",
     "otp",
   ]);

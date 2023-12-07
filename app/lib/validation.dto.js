@@ -20,10 +20,10 @@ exports.signInSchema = Joi.object({
   password: Joi.string().when("type", { is: "email", then: Joi.required() }),
   device_id: Joi.string().required(),
   role: Joi.string().optional().valid("user", "admin"),
-  facebook_access_token: Joi.string().when("type", {
-    is: "facebook",
-    then: Joi.optional(),
-  }),
+  // facebook_access_token: Joi.string().when("type", {
+  //   is: "facebook",
+  //   then: Joi.optional(),
+  // }),
 });
 
 exports.updateUsersSchema = Joi.object()
@@ -31,6 +31,20 @@ exports.updateUsersSchema = Joi.object()
     id: Joi.number().required(),
   })
   .pattern(Joi.string(), Joi.any().optional());
+
+exports.delPreferencesSchema = Joi.object({
+  user_id: Joi.number().required(),
+  chattiness_preference_id: Joi.number().optional(),
+  music_preference_id: Joi.number().optional(),
+  smoking_preference_id: Joi.number().optional(),
+  pets_preference_id: Joi.number().optional(),
+}).or(
+  "chattiness_preference_id",
+  "music_preference_id",
+  "smoking_preference_id",
+  "pets_preference_id"
+);
+
 
 exports.forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
@@ -162,6 +176,7 @@ exports.publishRidesSchema = Joi.object({
   max_passengers: Joi.number().integer().min(1).required(),
   request_option: Joi.string().valid("instant", "review").required(),
   price_per_seat: Joi.number().precision(2).required(),
+  vehicles_details_id: Joi.number().required(),
   return_ride_status: Joi.boolean(),
 });
 
@@ -255,4 +270,54 @@ exports.ratingSchema = Joi.object({
   ride_id: Joi.number().required(),
   rating: Joi.number().min(1).max(5).required(),
   comment: Joi.string().required(),
+});
+// bank_details
+exports.bankDetailSchema = Joi.object({
+  user_id: Joi.number().required(),
+  cardholder_name: Joi.string().required(),
+  card_number: Joi.string().creditCard().required(),
+  expiry_date: Joi.string()
+    .pattern(/^(0[1-9]|1[0-2])\/?([0-9]{4}|[0-9]{2})$/)
+    .required(),
+  cvv: Joi.string()
+    .pattern(/^[0-9]{3,4}$/)
+    .required(),
+});
+exports.updateBankDetailSchema = Joi.object({
+  id: Joi.number().required(),
+  user_id: Joi.number().required(),
+  cardholder_name: Joi.string().required(),
+  card_number: Joi.string().creditCard().required(),
+  expiry_date: Joi.string()
+    .pattern(/^(0[1-9]|1[0-2])\/?([0-9]{4}|[0-9]{2})$/)
+    .required(),
+  cvv: Joi.string()
+    .pattern(/^[0-9]{3,4}$/)
+    .required(),
+});
+
+// complaint
+exports.complaintSchema = Joi.object({
+  rider_id: Joi.number().required(),
+  user_id: Joi.number().required(),
+  reason: Joi.string().required(),
+});
+exports.updateComplaintSchema = Joi.object({
+  id: Joi.number().required(),
+  rider_id: Joi.number().required(),
+  user_id: Joi.number().required(),
+  reason: Joi.string().required(),
+});
+
+// preferences
+exports.preferencesSchema = Joi.object({
+  type: Joi.string().required().valid("chattiness", "music", "smoking", "pets"),
+  icon: Joi.number().required(),
+  prompt: Joi.string().required(),
+});
+exports.updatePreferencesSchema = Joi.object({
+  id: Joi.number().required(),
+  type: Joi.string().required().valid("chattiness", "music", "smoking", "pets"),
+  icon: Joi.number().required(),
+  prompt: Joi.string().required(),
 });

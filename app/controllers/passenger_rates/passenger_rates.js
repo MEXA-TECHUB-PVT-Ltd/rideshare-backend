@@ -8,7 +8,7 @@ const {
   deleteAll,
 } = require("../../utils/dbHeplerFunc");
 
-// Assuming you're using Express.js
+
 exports.create = async (req, res) => {
   const {
     rate

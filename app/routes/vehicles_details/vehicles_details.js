@@ -7,6 +7,7 @@ const { validateVehicleDetailsSchema, validateUpdateVehicleDetailsSchema, queryV
 router.post("/create", validateVehicleDetailsSchema, controller.create);
 router.put("/update", validateUpdateVehicleDetailsSchema, controller.update);
 router.get("/get/:id", controller.get);
+router.get("/getAllByUser/:user_id", controller.getAllByUser);
 router.get("/getAll", queryValidation, controller.getAll);
 router.delete("/delete/:id", controller.delete);
 router.delete("/deleteAll", controller.deleteAll);
