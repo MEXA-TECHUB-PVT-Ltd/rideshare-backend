@@ -34,6 +34,7 @@ exports.publishRides = async (req, res) => {
     request_option,
     price_per_seat,
     return_ride_status,
+    vehicles_details_id,
   } = req.body;
   const pickupPoint = `(${pickupLat}, ${pickupLong})`;
   const dropOffPoint = `(${dropOffLat}, ${dropOffLong})`;
@@ -54,19 +55,74 @@ exports.publishRides = async (req, res) => {
     request_option,
     price_per_seat,
     return_ride_status,
+    vehicles_details_id,
   };
 
   try {
-    const user = await checkUserExists("users", "id", user_id);
-    if (user.rowCount === 0) {
+    const userExists = await checkUserExists("users", "id", user_id);
+    if (userExists.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
+
+    const vehicleExists = await checkUserExists(
+      "vehicles_details",
+      "id",
+      vehicles_details_id
+    );
+    if (vehicleExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "vehicle_details not found");
+    }
+
     notifyUsersForNewRide(rideData);
+    const createResult = await createRecord("rides", rideData, []);
 
-    const result = await createRecord("rides", rideData, []);
+    if (createResult.error) {
+      return responseHandler(
+        res,
+        createResult.status,
+        false,
+        createResult.message
+      );
+    }
 
-    if (result.error) {
-      return responseHandler(res, result.status, false, result.message);
+    // Fetch the ride details along with vehicle type and color
+    const rideId = createResult.data.id; // Assuming the ID of the new record is returned in the result
+    const rideDetailsQuery = `
+      SELECT rd.*,
+       JSON_BUILD_OBJECT(
+           'license_plate_no', vd.license_plate_no,
+           'vehicle_details', JSON_BUILD_OBJECT(
+               'brand', vd.vehicle_brand,
+               'model', vd.vehicle_model,
+               'registration_no', vd.registration_no,
+               'driving_license_no', vd.driving_license_no,
+               'license_expiry_date', vd.license_expiry_date,
+               'personal_insurance', vd.personal_insurance
+           ),
+           'vehicle_type', JSON_BUILD_OBJECT(
+               'name', vt.name
+           ),
+           'vehicle_color', JSON_BUILD_OBJECT(
+               'name', vc.name,
+               'code', vc.code
+           )
+       ) AS vehicle_info
+FROM rides rd
+JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+WHERE rd.id = $1;
+`;
+
+    const rideDetailsResult = await pool.query(rideDetailsQuery, [rideId]);
+
+    if (rideDetailsResult.rowCount === 0) {
+      return responseHandler(
+        res,
+        404,
+        false,
+        "Ride details not found after creation"
+      );
     }
 
     return responseHandler(
@@ -74,7 +130,7 @@ exports.publishRides = async (req, res) => {
       201,
       true,
       "Ride details added successfully!",
-      result.data
+      rideDetailsResult.rows[0]
     );
   } catch (error) {
     console.error(error);
@@ -93,15 +149,29 @@ exports.search = async (req, res) => {
     } = req.query;
 
     // Fetch all rides
-    const allRidesQuery = `SELECT 
-  rides.*, 
-  vehicle_types.name AS vehicle_type_name
-FROM 
-  rides
-JOIN 
-  vehicles_details ON rides.user_id = vehicles_details.user_id
-JOIN 
-  vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id;
+    const allRidesQuery = `      
+      SELECT 
+        rides.*,
+        JSON_BUILD_OBJECT(
+          'license_plate_no', vehicles_details.license_plate_no,
+          'vehicle_brand', vehicles_details.vehicle_brand,
+          'vehicle_model', vehicles_details.vehicle_model,
+          'vehicle_type', JSON_BUILD_OBJECT(
+            'name', vehicle_types.name
+          ),
+          'vehicle_color', JSON_BUILD_OBJECT(
+            'name', vehicle_colors.name,
+            'code', vehicle_colors.code
+          )
+        ) AS vehicle_info
+      FROM 
+        rides
+      JOIN 
+        vehicles_details ON rides.vehicles_details_id = vehicles_details.id
+      JOIN 
+        vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
+      JOIN 
+        vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id;
 
 `;
     const allRidesResult = await pool.query(allRidesQuery);
@@ -174,7 +244,38 @@ JOIN
   }
 };
 
-exports.get = async (req, res) => getSingle(req, res, "rides");
+exports.get = async (req, res) => {
+  const join = `
+    JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
+    JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
+    JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
+  `;
+
+  const joinFields = `
+    rides.*,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vehicles_details.license_plate_no,
+      'vehicle_brand', vehicles_details.vehicle_brand,
+      'vehicle_model', vehicles_details.vehicle_model,
+      'registration_no', vehicles_details.registration_no,
+      'driving_license_no', vehicles_details.driving_license_no,
+      'license_expiry_date', vehicles_details.license_expiry_date,
+      'personal_insurance', vehicles_details.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vehicle_types.name,
+        'id', vehicles_details.vehicle_type_id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vehicle_colors.name,
+        'code', vehicle_colors.code,
+        'id', vehicles_details.vehicle_color_id
+      )
+    ) AS vehicle_info
+  `;
+
+  // Include only the fields from the 'rides' table in the main selection
+  return getSingle(req, res, "rides", "id", "rides.*", join, joinFields);
+};
 
 exports.joinRides = async (req, res) => {
   const { user_id, ride_id } = req.body;
@@ -260,6 +361,56 @@ exports.updateStatus = async (req, res) => {
 exports.getRideJoiners = async (req, res) => {
   const { ride_id } = req.params;
 
+  const join = `
+    JOIN users u ON rj.user_id = u.id
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN rides rd ON rj.ride_id = rd.id
+    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+    rj.*,
+    JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+      'id', rd.id,
+      'pickup_address', rd.pickup_address,
+      'drop_off_address', rd.drop_off_address,
+      'ride_date', rd.ride_date,
+      'tolls', rd.tolls,
+      'route_miles', rd.route_miles,
+      'max_passengers', rd.max_passengers,
+      'price_per_seat', rd.price_per_seat,
+      'return_ride_status', rd.return_ride_status,
+      'current_passenger_count', rd.current_passenger_count
+    ) AS ride_details,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
+
   getAll(
     req,
     res,
@@ -267,29 +418,50 @@ exports.getRideJoiners = async (req, res) => {
     "rj.created_at", // Default sort field
     "rj.*", // Fields from ride_joiners
     { "rj.ride_id": ride_id }, // Filters to get joiners for a specific ride
-    "JOIN users u ON rj.user_id = u.id", // Join with users table
-    "u.id, u.first_name, u.last_name, u.email, u.profile_picture" // User fields to include
-  );
-};
-
-exports.getRideJoiners = async (req, res) => {
-  const { ride_id } = req.params;
-
-  getAll(
-    req,
-    res,
-    "ride_joiners rj",
-    "rj.created_at",
-    "rj.*",
-    { "rj.ride_id": ride_id },
-    `JOIN users u ON rj.user_id = u.id
-     LEFT JOIN uploads up ON u.profile_picture = up.id`,
-    "u.id, u.first_name, u.last_name, u.email, u.gender, up.file_name AS profile_picture"
+    join, // JOIN with users, rides, vehicles_details, vehicle_types, vehicle_colors
+    joinFields // Fields structured as JSON
   );
 };
 
 exports.getAllPublishByUser = async (req, res) => {
   const { user_id } = req.params;
+
+  const join = `
+    JOIN users u ON r.user_id = u.id
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+    JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
 
   getAll(
     req,
@@ -298,25 +470,79 @@ exports.getAllPublishByUser = async (req, res) => {
     "r.created_at",
     "r.*",
     { "r.user_id": user_id },
-    `JOIN users u ON r.user_id = u.id
-     LEFT JOIN uploads up ON u.profile_picture = up.id`,
-    "u.id, u.first_name, u.last_name, u.email, u.gender, up.file_name AS profile_picture"
+    join,
+    joinFields
   );
 };
+
 exports.getAllJoinedByUser = async (req, res) => {
   const { user_id } = req.params;
+
+  const join = `
+    JOIN users u ON rj.user_id = u.id
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN rides rd ON rj.ride_id = rd.id
+    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+    JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+      'id', rd.id,
+      'pickup_address', rd.pickup_address,
+      'drop_off_address', rd.drop_off_address,
+      'ride_date', rd.ride_date,
+      'tolls', rd.tolls,
+      'route_miles', rd.route_miles,
+      'max_passengers', rd.max_passengers,
+      'price_per_seat', rd.price_per_seat,
+      'return_ride_status', rd.return_ride_status,
+      'current_passenger_count', rd.current_passenger_count
+    ) AS ride_details,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
+
+  const additionalFilters = {};
+  additionalFilters["rj.status"] = "accepted";
+  if (user_id) {
+    additionalFilters["rj.user_id"] = user_id;
+  }
 
   getAll(
     req,
     res,
     "ride_joiners rj",
     "rj.created_at",
-    "rj.*, json_build_object('id', rd.id, 'pickup_address', rd.pickup_address, 'drop_off_address', rd.drop_off_address, 'ride_date', rd.ride_date, 'ride_tolls', rd.tolls, 'route_miles', rd.route_miles, 'max_passengers', rd.max_passengers, 'price_per_seat', rd.price_per_seat, 'return_ride_status', rd.return_ride_status, 'current_passenger_count', rd.current_passenger_count) as ride_details",
-    { "rj.user_id": user_id },
-    `JOIN users u ON rj.user_id = u.id
-   LEFT JOIN uploads up ON u.profile_picture = up.id
-   JOIN rides rd ON rj.ride_id = rd.id`, // Additional join to the rides table
-    "u.id, u.first_name, u.last_name, u.email, u.gender, up.file_name AS profile_picture"
+    "rj.*",
+    additionalFilters,
+    join,
+    joinFields
   );
 };
 
@@ -353,7 +579,64 @@ exports.startRide = async (req, res) => {
   }
 };
 
+exports.pickupLocation = async (req, res) => {};
 
-exports.pickupLocation = async (req, res) => {
-  
-}
+exports.getAllRideByStatus = async (req, res) => {
+  const { status, user_id } = req.params;
+
+  const join = `
+    JOIN users u ON r.user_id = u.id
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+    JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
+
+  const additionalFilters = {};
+  if (status) {
+    additionalFilters["r.ride_status"] = status;
+  }
+  if (user_id) {
+    additionalFilters["r.user_id"] = user_id;
+  }
+
+  getAll(
+    req,
+    res,
+    "rides r",
+    "r.created_at",
+    "r.*",
+    additionalFilters,
+    join,
+    joinFields
+  );
+};

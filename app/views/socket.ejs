@@ -10,7 +10,16 @@
     <h1>WebSocket Test</h1>
     <button id="startRideButton">Start Ride</button>
     <button id="pickupLocationButton">On Pickup Location</button>
+    <button id="ongoing">On Going</button>
     <button id="completeRideButton">Complete Ride</button>
+    <hr />
+    <button id="break">Break</button>
+    <hr />
+    <button id="continue">Continue</button>
+    <hr />
+    <button id="wait">Wait and get $ 0.28 per minute</button>
+    <hr />
+    <button id="cancel">Cancel the ride and get $ 6.25</button>
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -20,23 +29,59 @@
           console.log("Connected to WebSocket server");
         });
 
-        socket.on("rideStarted", (rideId) => {
-          console.log("Ride started with ID:", rideId);
+        socket.on("rideStarted", async (data) => {
+          if (data) {
+            console.log("Ride started with ID:", data.result);
+          }
         });
 
-        socket.on("pickupLocationReached", (data) => {
-          console.log("Pickup location reached for ride ID:", data.ride_id);
+        socket.on("pickupLocationReached", async (data) => {
+          if (data) {
+            console.log("Pickup location reached for ride ID::", data.result);
+          }
+        });
+
+        socket.on("ongoing", async (data) => {
+          if (data) {
+            console.log("On going ride ID:", data.result);
+          }
         });
 
         socket.on("rideCompleted", (data) => {
-          console.log("Ride completed with ID:", data.ride_id);
+          if (data) {
+            console.log("Ride completed with ID:", data.result);
+          }
+        });
+
+        socket.on("break", async (data) => {
+          if (data) {
+            console.log("break of ride ID:", data.result);
+          }
+        });
+
+        socket.on("continue", (data) => {
+          if (data) {
+            console.log("continue ride ID:", data.result);
+          }
+        });
+
+        socket.on("wait", (data) => {
+          if (data) {
+            console.log("continue ride ID:", data.result);
+          }
+        });
+
+        socket.on("cancel", (data) => {
+          if (data) {
+            console.log("continue ride ID:", data.result);
+          }
         });
 
         // Start Ride button
         document
           .getElementById("startRideButton")
           .addEventListener("click", () => {
-            socket.emit("startRide", { ride_id: 3, ride_status: "started" });
+            socket.emit("startRide", { ride_id: 1 });
             console.log("Start Ride event emitted");
           });
 
@@ -44,17 +89,68 @@
         document
           .getElementById("pickupLocationButton")
           .addEventListener("click", () => {
-            socket.emit("pickupLocationReached", { ride_id: 3, user_id: 1 });
+            socket.emit("pickupLocationReached", { ride_id: 1 });
             console.log("Pickup Location event emitted");
           });
+
+        // On Going Location button
+        document.getElementById("ongoing").addEventListener("click", () => {
+          socket.emit("ongoing", { ride_id: 1 });
+          console.log("On going event emitted");
+        });
 
         // Complete Ride button
         document
           .getElementById("completeRideButton")
           .addEventListener("click", () => {
-            socket.emit("rideCompleted", { ride_id: 3 });
+            socket.emit("rideCompleted", { ride_id: 1, ride_duration: "30 minutes", ride_end_time: new Date().toISOString() });
             console.log("Complete Ride event emitted");
           });
+
+        // break Ride button
+        document.getElementById("break").addEventListener("click", () => {
+          const breakData = {
+            ride_id: 1, // Assuming you have a way to get the current ride's ID
+            break_start: new Date().toISOString(), // ISO string of the break start time
+            duration: "30 minutes", // The duration of the break
+          };
+          socket.emit("break", breakData);
+          console.log("break Ride event emitted");
+        });
+
+        // continue Ride button
+        document.getElementById("continue").addEventListener("click", () => {
+          const breakData = {
+            ride_id: 1,
+            break_id: 4,
+            break_end: new Date().toISOString(),
+          };
+          socket.emit("continue", breakData);
+          console.log("break Ride event emitted");
+        });
+
+        // wait Ride button
+        document.getElementById("wait").addEventListener("click", () => {
+          const breakData = {
+            ride_id: 1,
+            wait_time: 30,
+            wait_time_cost: 30.0,
+          };
+          socket.emit("wait", breakData);
+          console.log("break Ride event emitted");
+        });
+
+        // cancel Ride button
+        document.getElementById("cancel").addEventListener("click", () => {
+          const cancelData = {
+            ride_id: 1,
+            canceled_reason: "Some amount of reason",
+            canceled_ride_cost: 30.0,
+          };
+
+          socket.emit("cancel", cancelData);
+          console.log("Cancel Ride event emitted");
+        });
       });
     </script>
   </body>

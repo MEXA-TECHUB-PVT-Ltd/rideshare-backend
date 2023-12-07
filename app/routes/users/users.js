@@ -14,6 +14,7 @@ const {
   validateUpdateBlockStatus,
   validateUpdateDeactivateStatus,
   validateVerifyCode,
+  validateDeletePreferences,
 } = require("../../middlewares/bodyValidations");
 
 
@@ -22,6 +23,11 @@ router.post("/signIn", validateSignIn, controller.signIn);
 router.post("/forgotPassword", validateForgotPassword, controller.forgotPassword);
 router.post("/verify_otp", validateVerifyCode, controller.verify_otp);
 router.put('/update', validateUpdateUser, controller.update);
+router.put(
+  "/deleteUserPreferences",
+  validateDeletePreferences,
+  controller.nullifyUserPreference
+);
 router.put("/resetPassword", validateResetPassword, controller.resetPassword);
 router.put("/updatePassword", validateUpdatePassword, controller.updatePassword);
 router.put("/updateBlockStatus", validateUpdateBlockStatus, controller.updateBlockStatus);
@@ -32,7 +38,13 @@ router.put(
 );
 router.get('/getAll', queryValidation, controller.getAll);
 router.get('/getAllBlockUsers', queryValidation, controller.getAllBlockUsers);
+router.get('/getAllUsersWithDetails', queryValidation, controller.getAllUsersWithDetails);
 router.get('/get/:id', controller.get);
+router.get('/getUserWithDetails/:id', controller.getUserWithDetails);
+router.get(
+  "/getAllUserByInsuranceStatus/:insurance_status",
+  controller.getAllUserByInsuranceStatus
+);
 router.get("/search", queryValidation, controller.search);
 router.delete("/delete/:id", controller.delete);
 router.delete('/deleteAll', controller.deleteAll);

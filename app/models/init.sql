@@ -6,6 +6,15 @@ CREATE TABLE IF NOT EXISTS uploads (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS preferences (
+  id SERIAL PRIMARY KEY,
+  type TEXT NOT NULL,
+  -- 'chattiness', 'music', 'smoking', 'pets'
+  icon INT REFERENCES uploads(id) ON DELETE CASCADE,
+  prompt TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS users(
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -21,14 +30,24 @@ CREATE TABLE IF NOT EXISTS users(
   email_verified BOOLEAN DEFAULT FALSE,
   first_name TEXT,
   last_name TEXT,
-  date_of_birth DATE,
+  date_of_birth TIMESTAMP WITH TIME ZONE,
   gender TEXT,
   profile_picture INT REFERENCES uploads(id) ON DELETE CASCADE,
-  block_status BOOLEAN DEFAULT FALSE,
+  about VARCHAR(255),
+  phone INT,
+  post_address TEXT,
+  complementary_address TEXT,
+  location jsonb,
+  insurance_status BOOLEAN DEFAULT FALSE,
+  chattiness_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  music_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  smoking_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  pets_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
   payment_status BOOLEAN DEFAULT FALSE,
   deactivated BOOLEAN DEFAULT FALSE,
   deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
   facebook_access_token TEXT,
+  is_deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -113,8 +132,27 @@ CREATE TABLE IF NOT EXISTS rides(
   return_ride_status BOOLEAN DEFAULT FALSE,
   -- Return ride status
   ride_status VARCHAR(100),
-  -- canceled_reason VARCHAR(255),
+  vehicles_details_id INT REFERENCES vehicles_details(id) ON DELETE CASCADE,
   current_passenger_count INTEGER DEFAULT 0,
+  wait_time INT DEFAULT 0,
+  -- in minutes
+  wait_time_cost DECIMAL(10, 2) DEFAULT 0.00,
+  canceled_reason VARCHAR(255),
+  canceled_ride_cost DECIMAL(10, 2) DEFAULT 0.00,
+  ride_duration INTERVAL,
+  ride_end_time TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS ride_breaks (
+  id SERIAL PRIMARY KEY,
+  ride_id INT NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  break_start TIMESTAMP WITH TIME ZONE,
+  break_end TIMESTAMP WITH TIME ZONE,
+  duration INTERVAL,
+  -- in minutes
+  status VARCHAR(255),
+  -- on_break, completed
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -159,12 +197,45 @@ CREATE TABLE IF NOT EXISTS notification_types(
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS notification (
+  id SERIAL PRIMARY KEY,
+  sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type INT NOT NULL REFERENCES notification_types(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS rating(
   id SERIAL PRIMARY KEY,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   ride_id INT NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
   rating INTEGER,
   comment VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS bank_details(
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  cardholder_name VARCHAR(255),
+  -- Name on the card
+  card_number VARCHAR(255),
+  -- Encrypted card number
+  expiry_date DATE,
+  -- Format: YYYY-MM or MM/YYYY
+  cvv VARCHAR(255),
+  -- Encrypted CVV
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS complaints(
+  id SERIAL PRIMARY KEY,
+  rider_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

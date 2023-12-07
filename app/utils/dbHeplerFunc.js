@@ -198,25 +198,23 @@ exports.deleteSingle = async (
   }
 };
 
-exports.deleteAll = async (
-  req,
-  res,
-  tableName,
-  field = null,
-  fieldValue = null
-) => {
+exports.deleteAll = async (req, res, tableName, filters = {}) => {
   try {
+    // Construct WHERE clause based on filters
+    let whereClauses = [];
+    let queryParams = [];
+    Object.keys(filters).forEach((key, index) => {
+      whereClauses.push(`${key} = $${index + 1}`);
+      queryParams.push(filters[key]);
+    });
+
     // Check if records exist
-    let checkQuery;
-    let checkParams = [];
-    if (field && fieldValue !== null) {
-      checkQuery = `SELECT COUNT(*) FROM ${tableName} WHERE ${field} = $1`;
-      checkParams.push(fieldValue);
-    } else {
-      checkQuery = `SELECT COUNT(*) FROM ${tableName}`;
+    let checkQuery = `SELECT COUNT(*) FROM ${tableName}`;
+    if (whereClauses.length > 0) {
+      checkQuery += ` WHERE ${whereClauses.join(" AND ")}`;
     }
 
-    const checkResult = await pool.query(checkQuery, checkParams);
+    const checkResult = await pool.query(checkQuery, queryParams);
     const count = parseInt(checkResult.rows[0].count, 10);
 
     if (count === 0) {
@@ -229,17 +227,12 @@ exports.deleteAll = async (
     }
 
     // Delete records
-    let deleteQuery;
-    let deleteParams = [];
-
-    if (field && fieldValue !== null) {
-      deleteQuery = `DELETE FROM ${tableName} WHERE ${field} = $1`;
-      deleteParams.push(fieldValue);
-    } else {
-      deleteQuery = `DELETE FROM ${tableName}`;
+    let deleteQuery = `DELETE FROM ${tableName}`;
+    if (whereClauses.length > 0) {
+      deleteQuery += ` WHERE ${whereClauses.join(" AND ")}`;
     }
 
-    await pool.query(deleteQuery, deleteParams);
+    await pool.query(deleteQuery, queryParams);
 
     return responseHandler(
       res,
@@ -252,6 +245,7 @@ exports.deleteAll = async (
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
 
 exports.createRecord = async (
   tableName,
@@ -305,7 +299,7 @@ exports.updateRecord = async (
       return {
         error: true,
         status: 500,
-        message: "Error while updating record",
+        message: "Error while updating record, ensure you have passed the correct credentials",
       };
     }
 
@@ -400,3 +394,25 @@ exports.search = async (
   }
 };
 
+
+
+exports.getUserDetails = async (userId) => {
+  const query = `
+    SELECT json_build_object(
+      'id', u.id,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', json_build_object(
+        'id', up.id,
+        'file_name', up.file_name,
+        'file_type', up.file_type,
+        'mime_type', up.mime_type
+      )
+    ) as user_details
+    FROM users u
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    WHERE u.id = $1`;
+
+  const result = await pool.query(query, [userId]);
+  return result.rows[0] ? result.rows[0].user_details : null;
+}

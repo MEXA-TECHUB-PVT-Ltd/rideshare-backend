@@ -1,4 +1,4 @@
-const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema } = require("../lib/validation.dto");
+const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema, bankDetailSchema, updateBankDetailSchema, complaintSchema, updateComplaintSchema, updatePreferencesSchema, preferencesSchema, delPreferencesSchema } = require("../lib/validation.dto");
 
 
 //  ?? user module
@@ -20,6 +20,22 @@ exports.validateUser = (req, res, next) => {
 };
 exports.validateUpdateUser = (req, res, next) => {
   const { error } = updateUsersSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateDeletePreferences = (req, res, next) => {
+  const { error } = delPreferencesSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details
@@ -602,6 +618,109 @@ exports.validateUpdateNT = (req, res, next) => {
 // rating
 exports.validateRating = (req, res, next) => {
   const { error } = ratingSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+// bank_details
+exports.validateBankDetail = (req, res, next) => {
+  const { error } = bankDetailSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateUpdateBankDetail = (req, res, next) => {
+  const { error } = updateBankDetailSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+
+
+// complaint
+exports.validateComplaint = (req, res, next) => {
+  const { error } = complaintSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+
+exports.validateUpdateComplaint = (req, res, next) => {
+  const { error } = updateComplaintSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+
+// preferences
+exports.validatePreferences = (req, res, next) => {
+  const { error } = preferencesSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateUpdatePreferences = (req, res, next) => {
+  const { error } = updatePreferencesSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details
