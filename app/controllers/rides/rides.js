@@ -1,5 +1,4 @@
 // external libraries
-const geolib = require("geolib");
 
 // project files
 const { responseHandler } = require("../../utils/commonResponse");
@@ -14,6 +13,12 @@ const { notifyUsersForNewRide } = require("../../utils/notifyEmailOnNewRide");
 const { pool } = require("../../config/db.config");
 const { COORDINATE_THRESHOLD } = require("../../constants/constants");
 const { getIo } = require("../../config/socketSetup");
+const {
+  rideDataForEjs,
+  renderEJSTemplate,
+  rideEmailTemplatePath,
+} = require("../../utils/renderEmail");
+const sendEmail = require("../../lib/sendEmail");
 // const { io } = require("../../config/socketSetup");
 
 exports.publishRides = async (req, res) => {
@@ -115,6 +120,33 @@ WHERE rd.id = $1;
 `;
 
     const rideDetailsResult = await pool.query(rideDetailsQuery, [rideId]);
+
+    try {
+      const rideData = rideDataForEjs();
+      const rideHtmlContent = await renderEJSTemplate(
+        rideEmailTemplatePath,
+        rideData
+      );
+      const emailSent = await sendEmail(
+        userExists.rows[0].email,
+        "Ride Published",
+        rideHtmlContent
+      );
+
+      if (!emailSent.success) {
+        console.error(emailSent.message);
+        // Consider whether you want to return here or just log the error
+        return responseHandler(res, 500, false, emailSent.message);
+      }
+    } catch (sendEmailError) {
+      console.error(sendEmailError);
+      return responseHandler(
+        res,
+        500,
+        false,
+        "Error sending verification email"
+      );
+    }
 
     if (rideDetailsResult.rowCount === 0) {
       return responseHandler(
@@ -635,6 +667,72 @@ exports.getAllRideByStatus = async (req, res) => {
     "rides r",
     "r.created_at",
     "r.*",
+    additionalFilters,
+    join,
+    joinFields
+  );
+};
+
+exports.getAllRequestedRides = async (req, res) => {
+  const join = `
+    JOIN users u ON rj.user_id = u.id
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN rides rd ON rj.ride_id = rd.id
+    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+    JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+      'id', rd.id,
+      'pickup_address', rd.pickup_address,
+      'drop_off_address', rd.drop_off_address,
+      'ride_date', rd.ride_date,
+      'tolls', rd.tolls,
+      'route_miles', rd.route_miles,
+      'max_passengers', rd.max_passengers,
+      'price_per_seat', rd.price_per_seat,
+      'return_ride_status', rd.return_ride_status,
+      'current_passenger_count', rd.current_passenger_count
+    ) AS ride_details,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
+
+  const additionalFilters = {};
+  additionalFilters["rj.status"] = "pending";
+
+  getAll(
+    req,
+    res,
+    "ride_joiners rj",
+    "rj.created_at",
+    "rj.*",
     additionalFilters,
     join,
     joinFields

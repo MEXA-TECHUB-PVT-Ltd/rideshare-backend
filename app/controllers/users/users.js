@@ -26,6 +26,13 @@ const sendEmail = require("../../lib/sendEmail");
 const { JWT_SECRET } = require("../../constants/constants");
 const sendOtp = require("../../utils/sendOtp");
 const urls = require("../../utils/emailImages");
+const {
+  renderEJSTemplate,
+  verificationEmailTemplatePath,
+  signupEmailTemplatePath,
+  verificationDataForEjs,
+  singupDataForEjs,
+} = require("../../utils/renderEmail");
 
 // TODO : Make sure don't get the deactivated users
 // TODO : Display the error when deactivated users trying to sign up or login
@@ -83,90 +90,35 @@ exports.create = async (req, res) => {
     if (!newUser) {
       return responseHandler(res, 500, false, "Error while creating user");
     }
-    // Render the EJS template to a string
-    const emailTemplatePath = path.join(
-      __dirname,
-      "..",
-      "..",
-      "templates",
-      "signup.ejs"
-    );
-    const dataForEjs = {
-      email: email,
-    };
 
-    ejs.renderFile(emailTemplatePath, dataForEjs, async (err, htmlContent) => {
-      if (err) {
-        console.log(err); // Handle error appropriately
-        return res.status(500).json({
-          status: false,
-          message: "Error rendering email template",
-        });
+    try {
+      // Use the rendered HTML content for the email
+      const verificationData = verificationDataForEjs(email, otp);
+      const verificationHtmlContent = await renderEJSTemplate(
+        verificationEmailTemplatePath,
+        verificationData
+      );
+      const emailSent = await sendEmail(
+        email,
+        "Verify Your Email",
+        verificationHtmlContent
+      );
+
+      if (emailSent.success) {
+        responseHandler(
+          res,
+          201,
+          true,
+          "User created successfully! Please verify your email",
+          newUser
+        );
+      } else {
+        responseHandler(res, 500, false, emailSent.message);
       }
-
-      try {
-        // Use the rendered HTML content for the email
-        const emailSent = await sendEmail(
-          email,
-          "Sign Up Verification",
-          htmlContent
-        );
-
-        // Second email content for email verification
-        const verificationEmailTemplatePath = path.join(
-          __dirname,
-          "..",
-          "..",
-          "templates",
-          "verificationEmail.ejs"
-        );
-
-        const verificationDataForEjs = {
-          email: email,
-          verification_code: otp,
-          logo: urls.logo,
-          facebook: urls.facebook,
-          twitter: urls.twitter,
-          instagram: urls.instagram,
-        };
-
-        ejs.renderFile(
-          verificationEmailTemplatePath,
-          verificationDataForEjs,
-          async (err, verificationHtmlContent) => {
-            if (err) {
-              console.error(err);
-              return responseHandler(
-                res,
-                500,
-                false,
-                "Error rendering email verification template"
-              );
-            }
-            await sendEmail(
-              email,
-              "Verify Your Email",
-              verificationHtmlContent
-            );
-          }
-        );
-
-        if (emailSent.success) {
-          responseHandler(
-            res,
-            201,
-            true,
-            "User created successfully! Please verify your email",
-            newUser
-          );
-        } else {
-          responseHandler(res, 500, false, emailSent.message);
-        }
-      } catch (sendEmailError) {
-        console.error(sendEmailError);
-        responseHandler(res, 500, false, "Error sending verification email");
-      }
-    });
+    } catch (sendEmailError) {
+      console.error(sendEmailError);
+      responseHandler(res, 500, false, "Error sending verification email");
+    }
   } catch (error) {
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
@@ -390,7 +342,7 @@ exports.forgotPassword = async (req, res) => {
   const defaultRole = role ? role : "user";
   try {
     const user = await checkUserExists("users", "email", email, [
-      { role: defaultRole },
+      { column: "role", value: defaultRole },
     ]);
 
     if (user.rowCount === 0) {
@@ -404,6 +356,7 @@ exports.forgotPassword = async (req, res) => {
 
     const user_id = user.rows[0].id;
     const otp = await sendOtp(email, res, user_id);
+
 
     return responseHandler(
       res,
@@ -420,12 +373,14 @@ exports.forgotPassword = async (req, res) => {
 
 // verify code for both email and forgot password
 exports.verify_otp = async (req, res) => {
-  const { email, otp, role } = req.body;
+  const { email, otp, role, type } = req.body;
   const defaultRole = role ? role : "user";
+  console.log("ROLE", email, otp, defaultRole, type);
   try {
     const user = await checkUserExists("users", "email", email, [
-      { role: defaultRole },
+      { column: "role", value: defaultRole },
     ]);
+
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
@@ -435,19 +390,49 @@ exports.verify_otp = async (req, res) => {
       return responseHandler(res, 401, false, "Invalid OTP");
     }
 
-    const userData = {
-      email_verified: true,
-      otp: null,
-    };
+    // Update the user's record to reflect email verification
+    const userData = { email_verified: true, otp: null };
     const updatedUser = await updateRecord("users", userData, ["password"], {
       column: "email",
       value: email,
     });
+
+    // If type is 'signup', send the verification email
+    if (type === "signup") {
+      try {
+        const signupData = singupDataForEjs();
+        const signupHtmlContent = await renderEJSTemplate(
+          signupEmailTemplatePath,
+          signupData
+        );
+        const emailSent = await sendEmail(
+          email,
+          "Sign Up Verification",
+          signupHtmlContent
+        );
+
+        if (!emailSent.success) {
+          console.error(emailSent.message);
+          // Consider whether you want to return here or just log the error
+          return responseHandler(res, 500, false, emailSent.message);
+        }
+      } catch (sendEmailError) {
+        console.error(sendEmailError);
+        return responseHandler(
+          res,
+          500,
+          false,
+          "Error sending verification email"
+        );
+      }
+    }
+
+    // Send a response back that the OTP was verified successfully
     return responseHandler(
       res,
       200,
       true,
-      "Otp verified successfully ",
+      "OTP verified successfully",
       updatedUser
     );
   } catch (error) {
@@ -461,7 +446,7 @@ exports.resetPassword = async (req, res) => {
   const defaultRole = role ? role : "user";
   try {
     const user = await checkUserExists("users", "email", email, [
-      { role: defaultRole },
+      { column: "role", value: defaultRole },
     ]);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");

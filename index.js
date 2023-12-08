@@ -34,10 +34,10 @@ setupRideEvents();
 
 
 app.get("/signup", (req, res) => {
-  res.render(
-    path.join(__dirname, "app", "templates", "subscribeEmail.ejs"),
-    { verification_code: "123" }
-  );
+  res.render(path.join(__dirname, "app", "templates", "signup.ejs"), {
+    verification_code: "123",
+    base_url: process.env.CLOUDINARY_URL,
+  });
 });
 
 server.listen(PORT, () => console.log(`App is listening on ${PORT}`));
