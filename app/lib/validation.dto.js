@@ -53,10 +53,13 @@ exports.forgotPasswordSchema = Joi.object({
 exports.verifyCodeSchema = Joi.object({
   email: Joi.string().email().required(),
   otp: Joi.number().required(),
+  role: Joi.string().optional().valid("user", "admin"),
+  type: Joi.string().required().valid("signup", "forgot_password"),
 });
 exports.resetPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
   new_password: Joi.string().min(5).required(),
+  role: Joi.string().optional().valid("user", "admin"),
 });
 exports.updatePasswordSchema = Joi.object({
   email: Joi.string().email().required(),

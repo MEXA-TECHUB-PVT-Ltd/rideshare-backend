@@ -4,6 +4,7 @@ const {
   updateIntoTable,
   insertIntoTable,
 } = require("./commonResponse");
+const { checkUserExists } = require("./dbValidations");
 
 // Configuration for fields to exclude from certain tables
 const tableFieldExclusions = {
@@ -79,6 +80,7 @@ exports.getAll = async (
     const totalPages = Math.ceil(totalRows / limit);
 
     const result = await pool.query(query, queryParams);
+    console.log(query, queryParams, "\n", "result", result.rowCount);
 
     if (result.rowCount === 0) {
       return responseHandler(res, 404, false, "No records found");
@@ -115,9 +117,14 @@ exports.getSingle = async (
   join = "",
   joinFields = ""
 ) => {
-  const id = req.params.id;
+  const id = parseInt(req.params.id, 10);
+  console.log(typeof id);
 
   try {
+    const user = await checkUserExists(tableName, "id", id);
+    if (user.rowCount === 0) {
+      return responseHandler(res, 404, false, "Record not found");
+    }
     // Constructing the SELECT part of the query
     let selectFields = fields;
     if (join && joinFields) {
@@ -246,7 +253,6 @@ exports.deleteAll = async (req, res, tableName, filters = {}) => {
   }
 };
 
-
 exports.createRecord = async (
   tableName,
   data,
@@ -299,7 +305,8 @@ exports.updateRecord = async (
       return {
         error: true,
         status: 500,
-        message: "Error while updating record, ensure you have passed the correct credentials",
+        message:
+          "Error while updating record, ensure you have passed the correct credentials",
       };
     }
 
@@ -394,8 +401,6 @@ exports.search = async (
   }
 };
 
-
-
 exports.getUserDetails = async (userId) => {
   const query = `
     SELECT json_build_object(
@@ -415,4 +420,4 @@ exports.getUserDetails = async (userId) => {
 
   const result = await pool.query(query, [userId]);
   return result.rows[0] ? result.rows[0].user_details : null;
-}
+};

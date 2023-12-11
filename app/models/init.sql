@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users(
   complementary_address TEXT,
   location jsonb,
   insurance_status BOOLEAN DEFAULT FALSE,
+  block_status BOOLEAN DEFAULT FALSE,
   chattiness_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
   music_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
   smoking_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
