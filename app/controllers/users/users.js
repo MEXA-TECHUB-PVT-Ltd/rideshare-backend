@@ -35,7 +35,8 @@ const {
 } = require("../../utils/renderEmail");
 
 // TODO : Make sure don't get the deactivated users
-// TODO : Display the error when deactivated users trying to sign up or login
+// TODO : Display the error when deactivated users trying to sign up or logind
+// TODO : Need to properly handle the deactivated users --- required time will do it when management want
 
 exports.create = async (req, res) => {
   const { email, password, device_id, type, facebook_access_token, role } =
@@ -132,14 +133,18 @@ exports.signIn = async (req, res) => {
 
   try {
     const user = await checkUserExists("users", "email", email, [
-      { column: "role", value: defaultRole },
+      { column: "role", value: defaultRole, column: "type", value: type },
     ]);
     if (user.rowCount === 0) {
       return responseHandler(
         res,
         404,
         false,
-        `${role === "admin" ? "Admin not found" : "User not found"}`
+        `${
+          role === "admin"
+            ? "Admin not found"
+            : "User not found or not registered with this type"
+        }`
       );
     }
 
@@ -157,6 +162,20 @@ exports.signIn = async (req, res) => {
       // No password check needed here
     }
 
+    const userData = {
+      device_id,
+    };
+
+    const updatedResult = await updateRecord(
+      "users",
+      userData,
+      ["password", "otp", "admin_name"],
+      {
+        column: "id",
+        value: user.rows[0].id,
+      }
+    );
+
     const payload = {
       userId: user.rows[0].id, // Ensure you are referencing the correct property
       email: user.rows[0].email,
@@ -167,7 +186,7 @@ exports.signIn = async (req, res) => {
     delete user.rows[0].password;
 
     return responseHandler(res, 200, true, "Sign-in successful", {
-      user: user.rows[0],
+      updatedResult,
       token,
       device_id,
     });
@@ -241,7 +260,9 @@ exports.update = async (req, res) => {
     });
 
     const result = await pool.query(
-      `SELECT u.*, up.file_name, up.file_type, up.mime_type 
+      `SELECT u.*, json_build_object('file_name', up.file_name,
+           'file_type', up.file_type,
+           'mime_type', up.mime_type) AS profile_picture_details
        FROM users u
        LEFT JOIN uploads up ON u.profile_picture = up.id
        WHERE u.id = $1`,
@@ -348,15 +369,14 @@ exports.forgotPassword = async (req, res) => {
     if (user.rowCount === 0) {
       return responseHandler(
         res,
-        404,
+        401,
         false,
-        `${role.charAt(0).toUpperCase() + role.slice(1)} not found`
+        `Invalid credentials`
       );
     }
 
     const user_id = user.rows[0].id;
     const otp = await sendOtp(email, res, user_id);
-
 
     return responseHandler(
       res,
@@ -486,8 +506,8 @@ exports.updatePassword = async (req, res) => {
   const defaultRole = role ? role : "user";
   try {
     const user = await checkUserExists("users", "email", email, [
-      { role: defaultRole },
-    ]);
+      { column: "role", value: defaultRole },
+    ]); 
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
@@ -541,10 +561,23 @@ exports.getAllBlockUsers = async (req, res) =>
 
 exports.getAllUserByInsuranceStatus = async (req, res) => {
   const { insurance_status } = req.params;
-  return getAll(req, res, "users", "created_at", "*", {
+
+  const filters = {
     insurance_status: insurance_status,
-  });
+  };
+
+  return getAll(
+    req,
+    res,
+    "users",
+    "created_at",
+    "*",
+    filters, 
+    "",
+    ""
+  );
 };
+
 
 exports.getAllUsersWithDetails = async (req, res) => {
   const fields = `
@@ -603,19 +636,80 @@ exports.getAllUsersWithDetails = async (req, res) => {
 `;
 
   const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
+  let whereClause = " WHERE users.deleted_at IS NULL";
 
-  return getAll(
-    req,
-    res,
-    "users",
-    "created_at",
-    fields,
-    {}, // No additional filters
-    join
-  );
+
+  return getAll(req, res, "users", "created_at", fields, {}, whereClause);
+};
+
+
+
+exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
+  const fields = `
+  users.*,
+  (SELECT json_build_object(
+    'id', uploads.id,
+    'file_name', uploads.file_name,
+    'file_type', uploads.file_type,
+    'mime_type', uploads.mime_type
+  ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
+(SELECT json_agg(json_build_object(
+    'id', preferences.id,
+    'type', preferences.type,
+    'icon', (SELECT json_build_object(
+        'id', uploads.id,
+        'file_name', uploads.file_name,
+        'file_type', uploads.file_type,
+        'mime_type', uploads.mime_type
+      ) FROM uploads WHERE uploads.id = preferences.icon),
+    'prompt', preferences.prompt
+  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
+(SELECT json_agg(json_build_object(
+    'id', vehicles_details.id,
+    'user_id', vehicles_details.user_id,
+    'license_plate_no', vehicles_details.license_plate_no,
+    'vehicle_brand', vehicles_details.vehicle_brand,
+    'vehicle_model', vehicles_details.vehicle_model,
+    'registration_no', vehicles_details.registration_no,
+    'driving_license_no', vehicles_details.driving_license_no,
+    'license_expiry_date', vehicles_details.license_expiry_date,
+    'personal_insurance', vehicles_details.personal_insurance,
+    'vehicle_type', (SELECT json_build_object(
+        'id', vehicle_types.id,
+        'name', vehicle_types.name
+      ) FROM vehicle_types WHERE vehicle_types.id = vehicles_details.vehicle_type_id),
+    'vehicle_color', (SELECT json_build_object(
+        'id', vehicle_colors.id,
+        'name', vehicle_colors.name,
+        'code', vehicle_colors.code
+      ) FROM vehicle_colors WHERE vehicle_colors.id = vehicles_details.vehicle_color_id),
+    'created_at', vehicles_details.created_at,
+    'updated_at', vehicles_details.updated_at
+  )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
+  (SELECT json_agg(json_build_object(
+    'id', rides.id,
+    'pickup_location', rides.pickup_location,
+    'drop_off_location', rides.drop_off_location,
+    'ride_date', rides.ride_date,
+    'ride_status', rides.ride_status,
+    'caution_details', (SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'uploaded_icon_id', cautions.uploaded_icon_id
+    )) FROM unnest(rides.cautions) AS caution_id LEFT JOIN cautions ON cautions.id = caution_id)
+  )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+`;
+
+  const additionalFilters = { deleted_at: "IS NOT NULL" };
+  let whereClause = " WHERE users.deleted_at IS NOT NULL";
+
+  const join = ``; 
+
+  return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };
 
 exports.get = async (req, res) => getSingle(req, res, "users");
+
 exports.getUserWithDetails = async (req, res) => {
   const fields = `
     users.*,
@@ -656,6 +750,7 @@ exports.getUserWithDetails = async (req, res) => {
   `;
 
   const join = ``;
+
 
   return getSingle(req, res, "users", "id", fields, join);
 };
@@ -715,7 +810,7 @@ exports.updateDeactivateStatus = async (req, res) => {
 
     const userData = {
       deactivated,
-      deleted_at: "use_current_timestamp",
+      deleted_at: deactivated ? "use_current_timestamp" : null,
     };
 
     const updatedUser = await updateRecord("users", userData, [], {

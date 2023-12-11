@@ -64,9 +64,9 @@ exports.publishRides = async (req, res) => {
   };
 
   try {
-    const userExists = await checkUserExists("users", "id", user_id);
+    const userExists = await checkUserExists("users", "id", user_id, [{column: "deleted_at", value: "IS NULL"}]);
     if (userExists.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(res, 404, false, "User not found or deactivated");
     }
 
     const vehicleExists = await checkUserExists(
@@ -182,28 +182,30 @@ exports.search = async (req, res) => {
 
     // Fetch all rides
     const allRidesQuery = `      
-      SELECT 
-        rides.*,
-        JSON_BUILD_OBJECT(
-          'license_plate_no', vehicles_details.license_plate_no,
-          'vehicle_brand', vehicles_details.vehicle_brand,
-          'vehicle_model', vehicles_details.vehicle_model,
-          'vehicle_type', JSON_BUILD_OBJECT(
-            'name', vehicle_types.name
-          ),
-          'vehicle_color', JSON_BUILD_OBJECT(
-            'name', vehicle_colors.name,
-            'code', vehicle_colors.code
-          )
-        ) AS vehicle_info
-      FROM 
-        rides
-      JOIN 
-        vehicles_details ON rides.vehicles_details_id = vehicles_details.id
-      JOIN 
-        vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
-      JOIN 
-        vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id;
+SELECT 
+  rides.*,
+  JSON_BUILD_OBJECT(
+    'license_plate_no', vehicles_details.license_plate_no,
+    'vehicle_brand', vehicles_details.vehicle_brand,
+    'vehicle_model', vehicles_details.vehicle_model,
+    'vehicle_type', JSON_BUILD_OBJECT(
+      'name', vehicle_types.name
+    ),
+    'vehicle_color', JSON_BUILD_OBJECT(
+      'name', vehicle_colors.name,
+      'code', vehicle_colors.code
+    )
+  ) AS vehicle_info
+FROM 
+  rides
+JOIN 
+  vehicles_details ON rides.vehicles_details_id = vehicles_details.id
+JOIN 
+  vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
+JOIN 
+  vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
+JOIN 
+  users ON rides.user_id = users.id AND users.deleted_at IS NULL;
 
 `;
     const allRidesResult = await pool.query(allRidesQuery);
@@ -281,6 +283,7 @@ exports.get = async (req, res) => {
     JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
     JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
     JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
+    JOIN users ON rides.user_id = users.id AND users.deleted_at IS NULL
   `;
 
   const joinFields = `
@@ -313,9 +316,11 @@ exports.joinRides = async (req, res) => {
   const { user_id, ride_id } = req.body;
 
   try {
-    const user = await checkUserExists("users", "id", user_id);
+    const user = await checkUserExists("users", "id", user_id, [
+      { column: "deleted_at", value: "IS NULL" },
+    ]);
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(res, 404, false, "User not found or deactivated");
     }
     const ride = await checkUserExists("rides", "id", ride_id);
     if (ride.rowCount === 0) {
@@ -374,6 +379,12 @@ exports.updateStatus = async (req, res) => {
       value: id,
     });
 
+
+    if (status === "accepted") {
+      const updateRideQuery = `UPDATE rides SET current_passenger_count = current_passenger_count + 1 WHERE id = $1`;
+      await pool.query(updateRideQuery, [result.ride_id]);
+    }
+
     if (result.error) {
       return responseHandler(res, result.status, false, result.message);
     }
@@ -391,10 +402,10 @@ exports.updateStatus = async (req, res) => {
 };
 
 exports.getRideJoiners = async (req, res) => {
-  const { ride_id } = req.params;
+  const ride_id  = parseInt(req.params.ride_id, 10);
 
   const join = `
-    JOIN users u ON rj.user_id = u.id
+    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
@@ -456,10 +467,10 @@ exports.getRideJoiners = async (req, res) => {
 };
 
 exports.getAllPublishByUser = async (req, res) => {
-  const { user_id } = req.params;
+  const user_id  = parseInt(req.params.user_id, 10);
 
   const join = `
-    JOIN users u ON r.user_id = u.id
+    JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
     LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
@@ -511,7 +522,7 @@ exports.getAllJoinedByUser = async (req, res) => {
   const { user_id } = req.params;
 
   const join = `
-    JOIN users u ON rj.user_id = u.id
+    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
@@ -578,46 +589,13 @@ exports.getAllJoinedByUser = async (req, res) => {
   );
 };
 
-exports.startRide = async (req, res) => {
-  const { ride_id, ride_status } = req.body;
-
-  try {
-    const rides = await checkUserExists("rides", "id", ride_id);
-    if (rides.rowCount === 0) {
-      return responseHandler(res, 404, false, "Rides not found");
-    }
-    const userData = {
-      ride_status: ride_status,
-    };
-
-    const updatedRide = await updateRecord("rides", userData, [], {
-      column: "id",
-      value: ride_id,
-    });
-
-    const io = getIo();
-    io.emit("rideStarted", ride_id);
-
-    return responseHandler(
-      res,
-      201,
-      true,
-      "Ride details added successfully!",
-      updatedRide.data
-    );
-  } catch (error) {
-    console.error(error);
-    return responseHandler(res, 500, false, "Internal Server Error");
-  }
-};
-
-exports.pickupLocation = async (req, res) => {};
 
 exports.getAllRideByStatus = async (req, res) => {
-  const { status, user_id } = req.params;
+  const { status } = req.params;
+  const user_id = parseInt(req.params.user_id, 10);
 
   const join = `
-    JOIN users u ON r.user_id = u.id
+    JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
     LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
@@ -653,7 +631,7 @@ exports.getAllRideByStatus = async (req, res) => {
     ) AS vehicle_info
   `;
 
-  const additionalFilters = {};
+  let additionalFilters = {};
   if (status) {
     additionalFilters["r.ride_status"] = status;
   }
@@ -675,7 +653,7 @@ exports.getAllRideByStatus = async (req, res) => {
 
 exports.getAllRequestedRides = async (req, res) => {
   const join = `
-    JOIN users u ON rj.user_id = u.id
+    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id

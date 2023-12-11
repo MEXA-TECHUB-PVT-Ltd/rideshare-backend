@@ -133,7 +133,28 @@ exports.update = async (req, res) => {
   }
 };
 
-exports.getAll = async (req, res) => getAll(req, res, "preferences");
+exports.getAll = async (req, res) => {
+    const fields = `
+    preferences.*,
+    json_build_object(
+      'id', uploads.id,
+      'file_name', uploads.file_name,
+      'file_type', uploads.file_type,
+      'mime_type', uploads.mime_type
+    ) as icon_details`;
+
+  const join = `
+    LEFT JOIN uploads ON preferences.icon = uploads.id`;
+  return getAll(
+    req,
+    res,
+    "preferences",
+    "created_at",
+    fields,
+    {},
+    join
+  );
+} ;
 exports.getAllPreferencesByType = async (req, res) => {
   const { type } = req.params; 
 

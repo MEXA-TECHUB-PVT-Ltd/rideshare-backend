@@ -31,13 +31,21 @@ exports.create = async (req, res) => {
   };
 
   try {
-    const user = await checkUserExists("users", "id", user_id);
+    const user = await checkUserExists("users", "id", user_id, [
+      { column: "deleted_at", value: "IS NULL" },
+    ]);
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(res, 404, false, "User not found or deactivated");
     }
-    const rider = await checkUserExists("users", "id", rider_id);
+    const rider = await checkUserExists("users", "id", rider_id, [
+      { column: "deleted_at", value: "IS NULL" },
+    ]);
     if (rider.rowCount === 0) {
-      return responseHandler(res, 404, false, "Rider not found");
+      return responseHandler(res, 404, false, "Rider not found or deactivated");
+    }
+    const riderAlreadyExists = await checkRiderAlreadyExists(rider_id, user_id);
+    if (riderAlreadyExists) {
+      return responseHandler(res, 404, false, "Rider already in favorites");
     }
     const insertResult = await createRecord("fav_riders", favRiderData);
 
@@ -94,7 +102,7 @@ exports.getAllFavoriteRiders = async (req, res) => {
   const additionalFilters = { "fr.user_id": user_id };
 
   // Specify the JOIN clause to fetch details from the users table
-  const join = `JOIN users u ON fr.rider_id = u.id LEFT JOIN uploads up ON u.profile_picture = up.id`;
+  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id`;
   const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture`;
 
   // Call the getAll function
@@ -110,7 +118,45 @@ exports.getAllFavoriteRiders = async (req, res) => {
   );
 };
 
-exports.getAll = async (req, res) => getAll(req, res, "fav_riders");
-exports.get = async (req, res) => getSingle(req, res, "fav_riders");
+exports.getAll = async (req, res) => {
+  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id`;
+  const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture`;
+  return getAll(
+    req,
+    res,
+    "fav_riders fr",
+    "fr.id",
+    "fr.*",
+    {},
+    join,
+    joinFields
+  );
+};
+exports.get = async (req, res) => {
+  const join = `
+    JOIN users u ON fav_riders.user_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id
+  `;
+
+  const joinFields = `
+    u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture
+  `;
+  return getSingle(
+    req,
+    res,
+    "fav_riders",
+    "id",
+    "fav_riders.*",
+    join,
+    joinFields
+  );
+};
 exports.delete = async (req, res) => deleteSingle(req, res, "fav_riders");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "fav_riders");
+
+async function checkRiderAlreadyExists(rider_id, user_id) {
+  const result = await pool.query(
+    `SELECT * FROM fav_riders WHERE rider_id = $1 AND user_id = $2`,
+    [rider_id, user_id]
+  );
+  return result.rowCount > 0;
+}

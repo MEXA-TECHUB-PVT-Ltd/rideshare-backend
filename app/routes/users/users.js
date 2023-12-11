@@ -38,6 +38,11 @@ router.put(
 );
 router.get('/getAll', queryValidation, controller.getAll);
 router.get('/getAllBlockUsers', queryValidation, controller.getAllBlockUsers);
+router.get(
+  "/getAllRecentlyDeleted",
+  queryValidation,
+  controller.getAllRecentlyDeletedUsersWithDetails
+);
 router.get('/getAllUsersWithDetails', queryValidation, controller.getAllUsersWithDetails);
 router.get('/get/:id', controller.get);
 router.get('/getUserWithDetails/:id', controller.getUserWithDetails);

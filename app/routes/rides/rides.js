@@ -7,7 +7,6 @@ const { validatePublishRide, validateJoinRide, validateUpdateStatus, validateSta
 router.post("/publish_rides", validatePublishRide, controller.publishRides);
 router.post("/join_rides", validateJoinRide, controller.joinRides);
 router.put("/update_status", validateUpdateStatus, controller.updateStatus);
-router.put("/start_ride", validateStartRide, controller.startRide);
 router.get("/search", controller.search);
 router.get("/get/:id", controller.get);
 router.get(

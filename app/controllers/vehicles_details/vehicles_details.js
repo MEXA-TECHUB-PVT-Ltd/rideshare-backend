@@ -47,6 +47,13 @@ exports.create = async (req, res) => {
     if (vehicleTypeExists.rowCount === 0) {
       return responseHandler(res, 404, false, "Vehicle type not found");
     }
+    const userExists = await checkUserExists("users", "id", user_id, [
+      { column: "deleted_at", value: "IS NULL" },
+    ]);
+
+    if (userExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "User not found or deactivated");
+    }
 
     const vehicleColorExists = await checkUserExists(
       "vehicle_colors",
@@ -106,7 +113,6 @@ exports.create = async (req, res) => {
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
-
 
 exports.update = async (req, res) => {
   const {
@@ -220,8 +226,6 @@ exports.update = async (req, res) => {
   }
 };
 
-
-
 exports.getAll = async (req, res) => {
   return getAll(
     req,
@@ -230,18 +234,19 @@ exports.getAll = async (req, res) => {
     "id",
     "vehicles_details.*, vehicle_types.name AS vehicle_type_name, vehicle_colors.name AS vehicle_color_name, vehicle_colors.code AS vehicle_color_code",
     {},
-    "LEFT JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id LEFT JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id"
+    "LEFT JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id LEFT JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id INNER JOIN users u ON vehicles_details.user_id = u.id AND u.deleted_at IS NULL"
   );
 };
 
+
 exports.getAllByUser = async (req, res) => {
-  const {user_id} = req.params; // Assuming the user ID is passed as a URL parameter
+  const { user_id } = req.params; // Assuming the user ID is passed as a URL parameter
 
   // Define the fields to be selected, including those from joined tables
   const fields =
     "vehicles_details.*, vehicle_types.name AS vehicle_type_name, vehicle_colors.name AS vehicle_color_name, vehicle_colors.code AS vehicle_color_code";
   const join =
-    "LEFT JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id LEFT JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id";
+    "LEFT JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id LEFT JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id INNER JOIN users u ON vehicles_details.user_id = u.id AND u.deleted_at IS NULL" ;
 
   // Set additional filter for user ID
   const additionalFilters = { "vehicles_details.user_id": user_id };
@@ -256,7 +261,6 @@ exports.getAllByUser = async (req, res) => {
     join
   );
 };
-
 
 exports.get = async (req, res) => {
   return getSingle(
