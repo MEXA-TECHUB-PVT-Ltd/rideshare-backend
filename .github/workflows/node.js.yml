@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Check if server.js is running
+      - name: Check if index.js is running
         id: pm2-check
         run: |
           if pm2 show rideshare-be; then
@@ -27,16 +27,16 @@ jobs:
           fi
       - name: Install NPM packages
         run: npm i
-      - name: Start or Stop server.js with PM2
+      - name: Start or Stop index.js with PM2
         run: |
           if [[ "${{ steps.pm2-check.outputs.server_running }}" == "true" ]]; then
-            echo "Stopping server.js with PM2"
+            echo "Stopping index.js with PM2"
             pm2 stop "rideshare-be"
-            pm2 start -f server.js --name "rideshare-be"
+            pm2 start -f index.js --name "rideshare-be"
             pm2 save
           else
-            echo "Starting server.js with PM2"
-            pm2 start -f server.js --name "rideshare-be"
+            echo "Starting index.js with PM2"
+            pm2 start -f index.js --name "rideshare-be"
             pm2 save
           fi
       - name: Restart Nginx (if needed)
