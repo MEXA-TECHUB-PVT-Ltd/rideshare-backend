@@ -40,15 +40,39 @@ CREATE TABLE IF NOT EXISTS users(
   location jsonb,
   insurance_status BOOLEAN DEFAULT FALSE,
   block_status BOOLEAN DEFAULT FALSE,
-  chattiness_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
-  music_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
-  smoking_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
-  pets_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
   payment_status BOOLEAN DEFAULT FALSE,
   deactivated BOOLEAN DEFAULT FALSE,
   deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
   facebook_access_token TEXT,
   is_deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_chattiness_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  chattiness_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_music_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  music_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_smoking_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  smoking_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_pets_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  pets_preference_id INT REFERENCES preferences(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -132,6 +156,7 @@ CREATE TABLE IF NOT EXISTS rides(
   -- Price per seat
   return_ride_status BOOLEAN DEFAULT FALSE,
   -- Return ride status
+  return_ride_id INT REFERENCES rides(id) ON DELETE CASCADE,
   ride_status VARCHAR(100),
   vehicles_details_id INT REFERENCES vehicles_details(id) ON DELETE CASCADE,
   current_passenger_count INTEGER DEFAULT 0,
@@ -161,6 +186,13 @@ CREATE TABLE IF NOT EXISTS ride_joiners(
   id SERIAL PRIMARY KEY,
   ride_id INT NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  price_per_seat INT,
+  price_offer INT,
+  pickup_location VARCHAR(255),
+  drop_off_location VARCHAR(255),
+  total_distance VARCHAR(255),
+  pickup_time VARCHAR(255),
+  no_seats INT,
   status VARCHAR(100) DEFAULT 'pending',
   -- e.g., 'pending', 'accepted', 'rejected'
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -237,6 +269,12 @@ CREATE TABLE IF NOT EXISTS complaints(
   rider_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   reason VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS app_link(
+  id SERIAL PRIMARY KEY,
+  url TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

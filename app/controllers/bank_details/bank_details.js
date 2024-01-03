@@ -96,7 +96,15 @@ exports.update = async (req, res) => {
   }
 };
 
+
+exports.getAllByUser = async (req, res) => {
+  const user_id  = parseInt(req.params.user_id, 10);
+  const additionalFilters = { user_id };
+
+  getAll(req, res, "bank_details", "created_at", "*", additionalFilters);
+};
 exports.getAll = async (req, res) => getAll(req, res, "bank_details");
 exports.get = async (req, res) => getSingle(req, res, "bank_details");
 exports.delete = async (req, res) => deleteSingle(req, res, "bank_details");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "bank_details");
+

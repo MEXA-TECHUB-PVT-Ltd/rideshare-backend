@@ -53,6 +53,7 @@ router.get(
 router.get("/search", queryValidation, controller.search);
 router.delete("/delete/:id", controller.delete);
 router.delete('/deleteAll', controller.deleteAll);
+router.get('/getGraphicalRepresent', controller.getGraphicalRepresent);
 // router.get("/search", validateUsersSearchTerm, controller.search);
 
 

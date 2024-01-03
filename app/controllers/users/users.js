@@ -9,6 +9,7 @@ const {
   checkUserExists,
   checkUserAlreadyExist,
   checkAdmin,
+  validatePreferenceId,
 } = require("../../utils/dbValidations");
 const {
   responseHandler,
@@ -210,16 +211,43 @@ exports.update = async (req, res) => {
     about,
     insurance_status,
     location,
-    chattiness_preference_id,
-    music_preference_id,
-    smoking_preference_id,
-    pets_preference_id,
+    chattiness_preference_ids, // Array of IDs
+    music_preference_ids, // Array of IDs
+    smoking_preference_ids, // Array of IDs
+    pets_preference_ids, // Array of IDs
   } = req.body;
 
   try {
     const userExists = await checkUserExists("users", "id", id);
     if (userExists.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
+    }
+
+    // Function to validate multiple preference IDs
+    const validatePreferenceIds = async (ids, type) => {
+      for (const id of ids) {
+        if (!(await validatePreferenceId(id, type))) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    // Validate each type of preference IDs
+    if (
+      (chattiness_preference_ids &&
+        !(await validatePreferenceIds(
+          chattiness_preference_ids,
+          "chattiness"
+        ))) ||
+      (music_preference_ids &&
+        !(await validatePreferenceIds(music_preference_ids, "music"))) ||
+      (smoking_preference_ids &&
+        !(await validatePreferenceIds(smoking_preference_ids, "smoking"))) ||
+      (pets_preference_ids &&
+        !(await validatePreferenceIds(pets_preference_ids, "pets")))
+    ) {
+      return responseHandler(res, 400, false, "Invalid preference IDs");
     }
 
     let userData = {};
@@ -236,14 +264,13 @@ exports.update = async (req, res) => {
     if (phone !== undefined) userData.phone = phone;
     if (about !== undefined) userData.about = about;
     if (gender !== undefined) userData.gender = gender;
-    if (pets_preference_id !== undefined)
-      userData.pets_preference_id = pets_preference_id;
-    if (smoking_preference_id !== undefined)
-      userData.smoking_preference_id = smoking_preference_id;
-    if (music_preference_id !== undefined)
-      userData.music_preference_id = music_preference_id;
-    if (chattiness_preference_id !== undefined)
-      userData.chattiness_preference_id = chattiness_preference_id;
+    if (chattiness_preference_ids)
+      userData.chattiness_preference_ids = chattiness_preference_ids;
+    if (music_preference_ids)
+      userData.music_preference_ids = music_preference_ids;
+    if (smoking_preference_ids)
+      userData.smoking_preference_ids = smoking_preference_ids;
+    if (pets_preference_ids) userData.pets_preference_ids = pets_preference_ids;
     if (insurance_status !== undefined)
       userData.insurance_status = insurance_status;
     if (location !== undefined) userData.location = location;
@@ -367,12 +394,7 @@ exports.forgotPassword = async (req, res) => {
     ]);
 
     if (user.rowCount === 0) {
-      return responseHandler(
-        res,
-        401,
-        false,
-        `Invalid credentials`
-      );
+      return responseHandler(res, 401, false, `Invalid credentials`);
     }
 
     const user_id = user.rows[0].id;
@@ -507,7 +529,7 @@ exports.updatePassword = async (req, res) => {
   try {
     const user = await checkUserExists("users", "email", email, [
       { column: "role", value: defaultRole },
-    ]); 
+    ]);
     if (user.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found");
     }
@@ -566,18 +588,8 @@ exports.getAllUserByInsuranceStatus = async (req, res) => {
     insurance_status: insurance_status,
   };
 
-  return getAll(
-    req,
-    res,
-    "users",
-    "created_at",
-    "*",
-    filters, 
-    "",
-    ""
-  );
+  return getAll(req, res, "users", "created_at", "*", filters, "", "");
 };
-
 
 exports.getAllUsersWithDetails = async (req, res) => {
   const fields = `
@@ -588,17 +600,78 @@ exports.getAllUsersWithDetails = async (req, res) => {
     'file_type', uploads.file_type,
     'mime_type', uploads.mime_type
   ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
-(SELECT json_agg(json_build_object(
-    'id', preferences.id,
-    'type', preferences.type,
-    'icon', (SELECT json_build_object(
-        'id', uploads.id,
-        'file_name', uploads.file_name,
-        'file_type', uploads.file_type,
-        'mime_type', uploads.mime_type
-      ) FROM uploads WHERE uploads.id = preferences.icon),
-    'prompt', preferences.prompt
-  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
+  (
+    SELECT json_agg(
+      json_build_object(
+        'preference_id', cp.chattiness_preference_id,
+        'preference_type', p.type,
+        'preference_prompt', p.prompt,
+        'icon', json_build_object(
+          'file_name', upl.file_name,
+          'file_type', upl.file_type,
+          'mime_type', upl.mime_type
+        )
+      )
+    )
+    FROM user_chattiness_preferences cp
+    JOIN preferences p ON cp.chattiness_preference_id = p.id
+    LEFT JOIN uploads upl ON p.icon = upl.id
+    WHERE cp.user_id = users.id
+  ) AS chattiness_preferences,
+  (
+    SELECT json_agg(
+      json_build_object(
+        'preference_id', mp.music_preference_id,
+        'preference_type', p.type,
+        'preference_prompt', p.prompt,
+        'icon', json_build_object(
+          'file_name', upl.file_name,
+          'file_type', upl.file_type,
+          'mime_type', upl.mime_type
+        )
+      )
+    )
+    FROM user_music_preferences mp
+    JOIN preferences p ON mp.music_preference_id = p.id
+    LEFT JOIN uploads upl ON p.icon = upl.id
+    WHERE mp.user_id = users.id
+  ) AS music_preferences,
+  (
+    SELECT json_agg(
+      json_build_object(
+        'preference_id', sp.smoking_preference_id,
+        'preference_type', p.type,
+        'preference_prompt', p.prompt,
+        'icon', json_build_object(
+          'file_name', upl.file_name,
+          'file_type', upl.file_type,
+          'mime_type', upl.mime_type
+        )
+      )
+    )
+    FROM user_smoking_preferences sp
+    JOIN preferences p ON sp.smoking_preference_id = p.id
+    LEFT JOIN uploads upl ON p.icon = upl.id
+    WHERE sp.user_id = users.id
+  ) AS smoking_preferences,
+  (
+    SELECT json_agg(
+      json_build_object(
+        'preference_id', pp.pets_preference_id,
+        'preference_type', p.type,
+        'preference_prompt', p.prompt,
+        'icon', json_build_object(
+          'file_name', upl.file_name,
+          'file_type', upl.file_type,
+          'mime_type', upl.mime_type
+        )
+      )
+    )
+    FROM user_pets_preferences pp
+    JOIN preferences p ON pp.pets_preference_id = p.id
+    LEFT JOIN uploads upl ON p.icon = upl.id
+    WHERE pp.user_id = users.id
+  ) AS pets_preferences,
 (SELECT json_agg(json_build_object(
     'id', vehicles_details.id,
     'user_id', vehicles_details.user_id,
@@ -632,17 +705,21 @@ exports.getAllUsersWithDetails = async (req, res) => {
       'name', cautions.name,
       'uploaded_icon_id', cautions.uploaded_icon_id
     )) FROM unnest(rides.cautions) AS caution_id LEFT JOIN cautions ON cautions.id = caution_id)
-  )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+  )) FROM rides WHERE rides.user_id = users.id) AS ride_details,
+  (SELECT json_agg(json_build_object(
+      'id', bank_details.id,
+      'cardholder_name', bank_details.cardholder_name,
+      'card_number', bank_details.card_number,
+      'expiry_date', bank_details.expiry_date,
+      'cvv', bank_details.cvv
+    )) FROM bank_details WHERE bank_details.user_id = users.id) AS bank_details
 `;
 
   const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
   let whereClause = " WHERE users.deleted_at IS NULL";
 
-
   return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };
-
-
 
 exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
   const fields = `
@@ -703,12 +780,36 @@ exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
   const additionalFilters = { deleted_at: "IS NOT NULL" };
   let whereClause = " WHERE users.deleted_at IS NOT NULL";
 
-  const join = ``; 
+  const join = ``;
 
   return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };
 
-exports.get = async (req, res) => getSingle(req, res, "users");
+exports.get = async (req, res) => {
+  const tableName = "users";
+  const fields = `
+    users.*,
+    json_build_object(
+      'id', uploads.id,
+      'file_name', uploads.file_name,
+      'file_type', uploads.file_type,
+      'mime_type', uploads.mime_type
+    ) as profile_picture
+  `;
+  const joinTable = "uploads";
+  const joinOn = "users.profile_picture = uploads.id";
+  const joinFields = "";
+
+  return getSingle(
+    req,
+    res,
+    tableName,
+    "id",
+    fields,
+    `LEFT JOIN ${joinTable} ON ${joinOn}`,
+    joinFields
+  );
+};
 
 exports.getUserWithDetails = async (req, res) => {
   const fields = `
@@ -746,11 +847,17 @@ exports.getUserWithDetails = async (req, res) => {
       'pickup_location', rides.pickup_location,
       'ride_date', rides.ride_date,
       'ride_status', rides.ride_status
-    )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+    )) FROM rides WHERE rides.user_id = users.id) AS ride_details,
+        (SELECT json_agg(json_build_object(
+      'id', bank_details.id,
+      'cardholder_name', bank_details.cardholder_name,
+      'card_number', bank_details.card_number,
+      'expiry_date', bank_details.expiry_date,
+      'cvv', bank_details.cvv
+    )) FROM bank_details WHERE bank_details.user_id = users.id) AS bank_details
   `;
 
   const join = ``;
-
 
   return getSingle(req, res, "users", "id", fields, join);
 };
@@ -839,3 +946,65 @@ exports.updateDeactivateStatus = async (req, res) => {
     });
   }
 };
+exports.getGraphicalRepresent = async (req, res) => {
+  try {
+    const interval = req.query.interval || "day"; // Default to 'day' if no interval is provided
+
+    let query = "";
+    switch (interval) {
+      case "day":
+        query =
+          "SELECT DATE(created_at) as date, COUNT(*) as user_count FROM users GROUP BY DATE(created_at);";
+        break;
+      case "week":
+        query =
+          "SELECT DATE_TRUNC('week', created_at) as week, COUNT(*) as user_count FROM users GROUP BY week;";
+        break;
+      case "month":
+        query =
+          "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as user_count FROM users GROUP BY month;";
+        break;
+      case "year":
+        query =
+          "SELECT DATE_TRUNC('year', created_at) as year, COUNT(*) as user_count FROM users GROUP BY year;";
+        break;
+      default:
+        return res.status(400).send({ error: "Invalid interval" });
+    }
+
+    const { rows } = await pool.query(query);
+    const formattedRows = rows.map((row) => {
+      // Format the date or week/month/year value to a more readable format
+      if (interval === "week") {
+        // Example of formatting week interval
+        row.week = formatDateRange(row.week);
+      }
+      return row;
+    });
+
+    return responseHandler(
+      res,
+      200,
+      true,
+      `Record retrieved successfully!`,
+      formattedRows
+    );
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+};
+
+// Example helper function to format the date range for weeks
+function formatDateRange(date) {
+  const startDate = new Date(date);
+  const endDate = new Date(date);
+  endDate.setDate(startDate.getDate() + 6);
+
+  return `${startDate.toISOString().split("T")[0]} - ${
+    endDate.toISOString().split("T")[0]
+  }`;
+}

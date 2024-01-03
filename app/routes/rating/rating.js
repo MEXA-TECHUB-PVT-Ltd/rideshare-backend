@@ -16,6 +16,11 @@ router.get(
   controller.getAllRatingsGivenByUser
 );
 router.get(
+  "/getAllRatingsByRide/:ride_id",
+  queryValidation,
+  controller.getAllRatingsByRide
+);
+router.get(
   "/getAllRatingsOfUser/:user_id",
   queryValidation,
   controller.getAllRatingsOfUser

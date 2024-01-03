@@ -19,6 +19,8 @@ const rating = require("./rating/rating");
 const bank_details = require("./bank_details/bank_details");
 const complaints = require("./complaints/complaints");
 const preferences = require("./preferences/preferences");
+const user_preferences = require("./user_preferences/user_preferences");
+const app_link = require("./app_link/app_link");
 
 router.use("/users", users);
 router.use("/vehicles_details", vehicles_details);
@@ -44,5 +46,7 @@ router.use("/bank_details", bank_details);
 router.use("/bank_details", bank_details);
 router.use("/complaints", complaints);
 router.use("/preferences", preferences);
+router.use("/user_preferences", user_preferences);
+router.use("/app_link", app_link);
 
 module.exports = router;

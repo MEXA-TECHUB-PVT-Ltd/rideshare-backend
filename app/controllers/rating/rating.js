@@ -43,6 +43,14 @@ exports.getAllRatingsGivenByUser = async (req, res) => {
   getAll(req, res, "rating", "created_at", "*", additionalFilters);
 };
 
+exports.getAllRatingsByRide = async (req, res) => {
+  const { ride_id } = req.params;
+
+  const additionalFilters = { ride_id };
+
+  getAll(req, res, "rating", "created_at", "*", additionalFilters);
+};
+
 
 exports.getAllRatingsOfUser = async (req, res) => {
   const { user_id } = req.params; // Assuming user_id is passed as a URL parameter

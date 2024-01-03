@@ -16,6 +16,7 @@ router.post(
 router.put("/update", validateUpdateSearchNotifications, controller.update);
 router.get("/get/:id", controller.get);
 router.get("/getAll", queryValidation, controller.getAll);
+router.get("/getAllByUser/:user_id", controller.getAllByUser);
 router.delete("/delete/:id", controller.delete);
 router.delete("/deleteAll", controller.deleteAll);
 

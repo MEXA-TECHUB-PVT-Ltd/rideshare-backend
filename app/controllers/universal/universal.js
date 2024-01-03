@@ -44,3 +44,33 @@ exports.upload = async (req, res) => {
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
+exports.getAllCount = async (req, res) => {
+  try {
+    const usersResult = await pool.query(`SELECT COUNT(*) FROM users`);
+    const insuranceUsersResult = await pool.query(
+      `SELECT COUNT(*) FROM users WHERE insurance_status = 'true'`
+    );
+    const complaintResult = await pool.query(`SELECT COUNT(*) FROM complaints`);
+
+    const usersCount = usersResult.rows[0].count;
+    const insuranceUsersCount = insuranceUsersResult.rows[0].count;
+    const complaintCount = complaintResult.rows[0].count;
+    const response = {
+      usersCount,
+      insuranceUsersCount,
+      complaintCount,
+    };
+
+    return responseHandler(
+      res,
+      201,
+      true,
+      "File uploaded successfully!",
+      response
+    );
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};

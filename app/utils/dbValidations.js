@@ -38,3 +38,18 @@ exports.checkAdmin = async (table, column, field) => {
     );
     return result;
 }
+
+exports.validatePreferenceId = async (preferenceId, preferenceType) => {
+  const result = await pool.query(
+    `SELECT * FROM preferences WHERE id = $1 AND type = $2`,
+    [preferenceId, preferenceType]
+  );
+  return result.rowCount > 0;
+}
+
+
+exports.checkPreferenceExists = async (table, column, value, type) => {
+  const query = `SELECT * FROM ${table} WHERE ${column} = $1 AND type = $2`;
+  const result = await pool.query(query, [value, type]);
+  return result.rowCount > 0;
+};

@@ -19,7 +19,6 @@ const {
   rideEmailTemplatePath,
 } = require("../../utils/renderEmail");
 const sendEmail = require("../../lib/sendEmail");
-// const { io } = require("../../config/socketSetup");
 
 exports.publishRides = async (req, res) => {
   const {
@@ -39,6 +38,7 @@ exports.publishRides = async (req, res) => {
     request_option,
     price_per_seat,
     return_ride_status,
+    return_ride_id,
     vehicles_details_id,
   } = req.body;
   const pickupPoint = `(${pickupLat}, ${pickupLong})`;
@@ -60,13 +60,22 @@ exports.publishRides = async (req, res) => {
     request_option,
     price_per_seat,
     return_ride_status,
+    return_ride_id,
     vehicles_details_id,
   };
 
   try {
-    const userExists = await checkUserExists("users", "id", user_id, [{column: "deleted_at", value: "IS NULL"}]);
+    const userExists = await checkUserExists("users", "id", user_id);
     if (userExists.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found or deactivated");
+      return responseHandler(res, 404, false, "User not found ");
+    }
+    if (userExists.rows[0].deactivated) {
+      return responseHandler(
+        res,
+        404,
+        false,
+        "Your account is currently deactivated"
+      );
     }
 
     const vehicleExists = await checkUserExists(
@@ -280,47 +289,95 @@ JOIN
 
 exports.get = async (req, res) => {
   const join = `
-    JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
-    JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
-    JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
-    JOIN users ON rides.user_id = users.id AND users.deleted_at IS NULL
-  `;
+  JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
+  JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
+  JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
+  JOIN users ON rides.user_id = users.id AND users.deleted_at IS NULL
+  LEFT JOIN rides AS return_rides ON rides.return_ride_id = return_rides.id
+`;
 
   const joinFields = `
-    rides.*,
-    JSON_BUILD_OBJECT(
-      'license_plate_no', vehicles_details.license_plate_no,
-      'vehicle_brand', vehicles_details.vehicle_brand,
-      'vehicle_model', vehicles_details.vehicle_model,
-      'registration_no', vehicles_details.registration_no,
-      'driving_license_no', vehicles_details.driving_license_no,
-      'license_expiry_date', vehicles_details.license_expiry_date,
-      'personal_insurance', vehicles_details.personal_insurance,
-      'vehicle_type', JSON_BUILD_OBJECT(
-        'name', vehicle_types.name,
-        'id', vehicles_details.vehicle_type_id
-      ),
-      'vehicle_color', JSON_BUILD_OBJECT(
-        'name', vehicle_colors.name,
-        'code', vehicle_colors.code,
-        'id', vehicles_details.vehicle_color_id
-      )
-    ) AS vehicle_info
-  `;
+  rides.*,
+  JSON_BUILD_OBJECT(
+    'license_plate_no', vehicles_details.license_plate_no,
+    'vehicle_brand', vehicles_details.vehicle_brand,
+    'vehicle_model', vehicles_details.vehicle_model,
+    'registration_no', vehicles_details.registration_no,
+    'driving_license_no', vehicles_details.driving_license_no,
+    'license_expiry_date', vehicles_details.license_expiry_date,
+    'personal_insurance', vehicles_details.personal_insurance,
+    'vehicle_type', JSON_BUILD_OBJECT(
+      'name', vehicle_types.name,
+      'id', vehicles_details.vehicle_type_id
+    ),
+    'vehicle_color', JSON_BUILD_OBJECT(
+      'name', vehicle_colors.name,
+      'code', vehicle_colors.code,
+      'id', vehicles_details.vehicle_color_id
+    )
+  ) AS vehicle_info,
+   CASE
+    WHEN rides.return_ride_status THEN JSON_BUILD_OBJECT(
+    'id', return_rides.id,
+    'user_id', return_rides.user_id,
+    'pickup_location', return_rides.pickup_location,
+    'pickup_address', return_rides.pickup_address,
+    'drop_off_location', return_rides.drop_off_location,
+    'drop_off_address', return_rides.drop_off_address,
+    'tolls', return_rides.tolls,
+    'route_time', return_rides.route_time,
+    'city_of_route', return_rides.city_of_route,
+    'route_miles', return_rides.route_miles,
+    'ride_date', return_rides.ride_date,
+    'time_to_pickup', return_rides.time_to_pickup,
+    'cautions', return_rides.cautions,
+    'max_passengers', return_rides.max_passengers,
+    'request_option', return_rides.request_option,
+    'price_per_seat', return_rides.price_per_seat,
+    'return_ride_status', return_rides.return_ride_status,
+    'return_ride_id', return_rides.return_ride_id,
+    'ride_status', return_rides.ride_status,
+    'vehicles_details_id', return_rides.vehicles_details_id,
+    'current_passenger_count', return_rides.current_passenger_count,
+    'wait_time', return_rides.wait_time,
+    'wait_time_cost', return_rides.wait_time_cost,
+    'canceled_reason', return_rides.canceled_reason,
+    'canceled_ride_cost', return_rides.canceled_ride_cost,
+    'ride_duration', return_rides.ride_duration,
+    'ride_end_time', return_rides.ride_end_time
+  ) ELSE NULL
+  END AS return_ride_details
+`;
 
   // Include only the fields from the 'rides' table in the main selection
   return getSingle(req, res, "rides", "id", "rides.*", join, joinFields);
 };
 
 exports.joinRides = async (req, res) => {
-  const { user_id, ride_id } = req.body;
+  const {
+    user_id,
+    ride_id,
+    price_per_seat,
+    price_offer,
+    pickup_location,
+    drop_off_location,
+    total_distance,
+    pickup_time,
+    no_seats,
+  } = req.body;
 
   try {
-    const user = await checkUserExists("users", "id", user_id, [
-      { column: "deleted_at", value: "IS NULL" },
-    ]);
+    const user = await checkUserExists("users", "id", user_id);
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found or deactivated");
+      return responseHandler(res, 404, false, "User not found ");
+    }
+    if (user.rows[0].deactivated) {
+      return responseHandler(
+        res,
+        404,
+        false,
+        "Your account is currently deactivated"
+      );
     }
     const ride = await checkUserExists("rides", "id", ride_id);
     if (ride.rowCount === 0) {
@@ -338,6 +395,13 @@ exports.joinRides = async (req, res) => {
         user_id,
         ride_id,
         status: "accepted",
+        price_per_seat,
+        price_offer,
+        pickup_location,
+        drop_off_location,
+        total_distance,
+        pickup_time,
+        no_seats,
       };
       result = await createRecord("ride_joiners", rideJoiner, []);
     } else {
@@ -346,9 +410,18 @@ exports.joinRides = async (req, res) => {
         user_id,
         ride_id,
         status: "pending",
+        price_per_seat,
+        price_offer,
+        pickup_location,
+        drop_off_location,
+        total_distance,
+        pickup_time,
+        no_seats,
       };
       result = await createRecord("ride_joiners", rideJoiner, []);
     }
+
+    console.log(result);
     return responseHandler(
       res,
       201,
@@ -379,7 +452,6 @@ exports.updateStatus = async (req, res) => {
       value: id,
     });
 
-
     if (status === "accepted") {
       const updateRideQuery = `UPDATE rides SET current_passenger_count = current_passenger_count + 1 WHERE id = $1`;
       await pool.query(updateRideQuery, [result.ride_id]);
@@ -402,7 +474,7 @@ exports.updateStatus = async (req, res) => {
 };
 
 exports.getRideJoiners = async (req, res) => {
-  const ride_id  = parseInt(req.params.ride_id, 10);
+  const ride_id = parseInt(req.params.ride_id, 10);
 
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
@@ -420,6 +492,7 @@ exports.getRideJoiners = async (req, res) => {
       'first_name', u.first_name,
       'last_name', u.last_name,
       'email', u.email,
+      'about', u.about,
       'profile_picture', up.file_name
     ) AS user_info,
     JSON_BUILD_OBJECT(
@@ -454,20 +527,26 @@ exports.getRideJoiners = async (req, res) => {
     ) AS vehicle_info
   `;
 
+  const additionalFilters = {};
+  additionalFilters["rj.status"] = "accepted";
+    if (ride_id) {
+      additionalFilters["rj.ride_id"] = ride_id;
+    }
+
   getAll(
     req,
     res,
     "ride_joiners rj", // Table name with alias
     "rj.created_at", // Default sort field
     "rj.*", // Fields from ride_joiners
-    { "rj.ride_id": ride_id }, // Filters to get joiners for a specific ride
+    additionalFilters, // Filters to get joiners for a specific ride
     join, // JOIN with users, rides, vehicles_details, vehicle_types, vehicle_colors
     joinFields // Fields structured as JSON
   );
 };
 
 exports.getAllPublishByUser = async (req, res) => {
-  const user_id  = parseInt(req.params.user_id, 10);
+  const user_id = parseInt(req.params.user_id, 10);
 
   const join = `
     JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
@@ -589,7 +668,6 @@ exports.getAllJoinedByUser = async (req, res) => {
   );
 };
 
-
 exports.getAllRideByStatus = async (req, res) => {
   const { status } = req.params;
   const user_id = parseInt(req.params.user_id, 10);
@@ -704,6 +782,92 @@ exports.getAllRequestedRides = async (req, res) => {
 
   const additionalFilters = {};
   additionalFilters["rj.status"] = "pending";
+
+  getAll(
+    req,
+    res,
+    "ride_joiners rj",
+    "rj.created_at",
+    "rj.*",
+    additionalFilters,
+    join,
+    joinFields
+  );
+};
+
+exports.getAllRequestedByRides = async (req, res) => {
+  const { ride_id } = req.params;
+
+  const join = `
+    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN rides rd ON rj.ride_id = rd.id
+    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  `;
+
+  const joinFields = `
+        JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_picture', up.file_name
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+    'id', rd.id,
+    'user_id', rd.user_id,
+    'pickup_location', rd.pickup_location,
+    'pickup_address', rd.pickup_address,
+    'drop_off_location', rd.drop_off_location,
+    'drop_off_address', rd.drop_off_address,
+    'tolls', rd.tolls,
+    'route_time', rd.route_time,
+    'city_of_route', rd.city_of_route,
+    'route_miles', rd.route_miles,
+    'ride_date', rd.ride_date,
+    'time_to_pickup', rd.time_to_pickup,
+    'max_passengers', rd.max_passengers,
+    'request_option', rd.request_option,
+    'price_per_seat', rd.price_per_seat,
+    'return_ride_status', rd.return_ride_status,
+    'return_ride_id', rd.return_ride_id,
+    'ride_status', rd.ride_status,
+    'vehicles_details_id', rd.vehicles_details_id,
+    'current_passenger_count', rd.current_passenger_count,
+    'wait_time', rd.wait_time,
+    'wait_time_cost', rd.wait_time_cost,
+    'canceled_reason', rd.canceled_reason,
+    'canceled_ride_cost', rd.canceled_ride_cost,
+    'ride_duration', rd.ride_duration,
+    'ride_end_time', rd.ride_end_time
+    ) AS ride_details,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info
+  `;
+
+  const additionalFilters = {
+    "rj.status": "pending",
+    "rj.ride_id": ride_id,
+  };
 
   getAll(
     req,
