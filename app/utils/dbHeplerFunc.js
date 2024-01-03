@@ -21,7 +21,7 @@ exports.getAll = async (
   joinFields = ""
 ) => {
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const limit = parseInt(req.query.limit, 10) || 100;
   const sortField = req.query.sortField || defaultSortField;
   const sortOrder = req.query.sortOrder || "desc";
 
@@ -80,7 +80,7 @@ exports.getAll = async (
     const totalPages = Math.ceil(totalRows / limit);
 
     const result = await pool.query(query, queryParams);
-    console.log(query, queryParams, "\n", "result", result.rowCount);
+    // console.log(query, queryParams, "\n", "result", result.rowCount);
 
     if (result.rowCount === 0) {
       return responseHandler(res, 404, false, "No records found");
@@ -118,7 +118,7 @@ exports.getSingle = async (
   joinFields = ""
 ) => {
   const id = parseInt(req.params.id, 10);
-  console.log(typeof id);
+  // console.log(typeof id);
 
   try {
     const user = await checkUserExists(tableName, "id", id);

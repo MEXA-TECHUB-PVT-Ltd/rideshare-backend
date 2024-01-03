@@ -110,6 +110,23 @@ exports.update = async (req, res) => {
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+exports.getAllByUser = async (req, res) => {
+  const { user_id } = req.params;
+
+  const additionalFilters = {};
+  if (user_id) {
+    additionalFilters["user_id"] = user_id;
+  }
+
+  getAll(
+    req,
+    res,
+    "search_ride_notifications",
+    "created_at", 
+    "*", 
+    additionalFilters 
+  );
+};
 
 exports.getAll = async (req, res) =>
   getAll(req, res, "search_ride_notifications");

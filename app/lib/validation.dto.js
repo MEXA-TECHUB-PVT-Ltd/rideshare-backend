@@ -45,7 +45,6 @@ exports.delPreferencesSchema = Joi.object({
   "pets_preference_id"
 );
 
-
 exports.forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
   role: Joi.string().optional().valid("user", "admin"),
@@ -181,11 +180,23 @@ exports.publishRidesSchema = Joi.object({
   price_per_seat: Joi.number().precision(2).required(),
   vehicles_details_id: Joi.number().required(),
   return_ride_status: Joi.boolean(),
+  return_ride_id: Joi.number().when("return_ride_status", {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
 });
 
 exports.joinRidesSchema = Joi.object({
   user_id: Joi.number().required(),
   ride_id: Joi.number().required(),
+  price_per_seat: Joi.number().required(),
+  price_offer: Joi.number().required(),
+  pickup_location: Joi.string().required(),
+  drop_off_location: Joi.string().required(),
+  total_distance: Joi.string().required(),
+  pickup_time: Joi.string().required(),
+  no_seats: Joi.number().required(),
 });
 exports.updateStatusSchema = Joi.object({
   id: Joi.number().required(),
@@ -323,4 +334,9 @@ exports.updatePreferencesSchema = Joi.object({
   type: Joi.string().required().valid("chattiness", "music", "smoking", "pets"),
   icon: Joi.number().required(),
   prompt: Joi.string().required(),
+});
+
+// queries
+exports.appLinkSchema = Joi.object({
+  url: Joi.string().required(),
 });

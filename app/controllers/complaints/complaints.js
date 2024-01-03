@@ -86,12 +86,14 @@ exports.update = async (req, res) => {
   }
 };
 
-
 exports.getAll = async (req, res) => {
   const fields = `
     complaints.*,
     json_build_object(
       'id', u1.id,
+      'first_name', u1.first_name,
+      'last_name', u1.last_name,
+      'email', u1.email,
       'profile_picture', json_build_object(
         'id', up1.id,
         'file_name', up1.file_name
@@ -99,6 +101,10 @@ exports.getAll = async (req, res) => {
     ) as user_details,
     json_build_object(
       'id', u2.id,
+      'first_name', u2.first_name,
+      'last_name', u2.last_name,
+      'email', u2.email,
+      'block_status', u2.block_status,
       'profile_picture', json_build_object(
         'id', up2.id,
         'file_name', up2.file_name
@@ -123,7 +129,7 @@ exports.getAll = async (req, res) => {
 };
 
 exports.getAllComplaintsByUser = async (req, res) => {
-  const { user_id } = req.params; 
+  const { user_id } = req.params;
 
   const fields = `
     complaints.*,
@@ -147,7 +153,7 @@ exports.getAllComplaintsByUser = async (req, res) => {
     LEFT JOIN uploads up1 ON u1.profile_picture = up1.id
     LEFT JOIN users u2 ON complaints.rider_id = u2.id
     LEFT JOIN uploads up2 ON u2.profile_picture = up2.id`;
-  
+
   const additionalFilters = { "complaints.user_id": user_id };
 
   return getAll(
@@ -166,6 +172,6 @@ exports.delete = async (req, res) => deleteSingle(req, res, "complaints");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "complaints");
 // Example: Delete all complaints made by a specific user
 exports.deleteAllComplaintsByUser = async (req, res) => {
-  const user_id = req.params.user_id; 
+  const user_id = req.params.user_id;
   await deleteAll(req, res, "complaints", { user_id: user_id });
 };

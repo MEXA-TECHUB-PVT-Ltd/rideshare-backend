@@ -11,6 +11,7 @@ const {
 router.post("/create", validateBankDetail, controller.create);
 router.put("/update", validateUpdateBankDetail, controller.update);
 router.get("/get/:id", controller.get);
+router.get("/getAllByUser/:user_id", controller.getAllByUser);
 router.get("/getAll", queryValidation, controller.getAll);
 router.delete("/delete/:id", controller.delete);
 router.delete("/deleteAll", controller.deleteAll);
