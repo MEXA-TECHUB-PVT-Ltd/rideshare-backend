@@ -322,6 +322,48 @@ exports.update = async (req, res) => {
   }
 };
 
+
+exports.updateInsuranceStatus = async (req, res) => {
+  const { user_id, status } = req.body;
+    try {
+      const userExists = await checkUserExists("users", "id", user_id);
+      if (userExists.rowCount === 0) {
+        return responseHandler(res, 404, false, "User not found");
+      }
+
+      const userData = {
+      connected_insurances_user: status,
+      };
+
+      const result = await updateRecord("users", userData, ["password", "otp", "admin_name"], {
+        column: "id",
+        value: user_id,
+      });
+
+
+      if (result.rowCount === 0) {
+        return responseHandler(
+          res,
+          500,
+          false,
+          "Error while retrieving updated user data"
+        );
+      }
+
+      return responseHandler(
+        res,
+        200,
+        true,
+        "User status updated successfully!",
+        result
+      );
+    } catch (error) {
+      console.error(error);
+      return responseHandler(res, 500, false, "Internal Server Error");
+    }
+}
+
+
 exports.nullifyUserPreference = async (req, res) => {
   const {
     user_id,

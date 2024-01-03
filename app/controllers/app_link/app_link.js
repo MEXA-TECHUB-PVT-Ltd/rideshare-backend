@@ -1,26 +1,26 @@
 const { pool } = require("../../config/db.config");
 const { responseHandler } = require("../../utils/commonResponse");
-const { createRecord, getAll } = require("../../utils/dbHeplerFunc");
+const { createRecord, getAll, getSingle } = require("../../utils/dbHeplerFunc");
 
 // Assuming you're using Express.js
 exports.create = async (req, res) => {
   const { url } = req.body;
 
   try {
-    // Check if there is any record in the app_links table
-    const existingRecords = await pool.query("SELECT * FROM app_links");
+    // Check if there is any record in the app_link table
+    const existingRecords = await pool.query("SELECT * FROM app_link");
 
     let result;
     if (existingRecords.rowCount > 0) {
       // If there's a record, update it
-      result = await pool.query("UPDATE app_links SET url = $1 WHERE id = $2", [
-        url,
-        existingRecords.rows[0].id,
-      ]);
+      result = await pool.query(
+        "UPDATE app_link SET url = $1 WHERE id = $2 RETURNING *",
+        [url, existingRecords.rows[0].id]
+      );
     } else {
       // If there's no record, create a new one
       result = await pool.query(
-        "INSERT INTO app_links (url) VALUES ($1) RETURNING *",
+        "INSERT INTO app_link (url) VALUES ($1) RETURNING *",
         [url]
       );
     }

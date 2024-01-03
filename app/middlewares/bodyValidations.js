@@ -1,4 +1,4 @@
-const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema, bankDetailSchema, updateBankDetailSchema, complaintSchema, updateComplaintSchema, updatePreferencesSchema, preferencesSchema, delPreferencesSchema, appLinkSchema } = require("../lib/validation.dto");
+const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema, bankDetailSchema, updateBankDetailSchema, complaintSchema, updateComplaintSchema, updatePreferencesSchema, preferencesSchema, delPreferencesSchema, appLinkSchema, updateInsSchema } = require("../lib/validation.dto");
 
 
 //  ?? user module
@@ -20,6 +20,22 @@ exports.validateUser = (req, res, next) => {
 };
 exports.validateUpdateUser = (req, res, next) => {
   const { error } = updateUsersSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateUpdateUserIns = (req, res, next) => {
+  const { error } = updateInsSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details

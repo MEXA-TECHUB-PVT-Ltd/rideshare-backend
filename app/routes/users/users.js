@@ -15,6 +15,7 @@ const {
   validateUpdateDeactivateStatus,
   validateVerifyCode,
   validateDeletePreferences,
+  validateUpdateUserIns,
 } = require("../../middlewares/bodyValidations");
 
 
@@ -31,6 +32,11 @@ router.put(
 router.put("/resetPassword", validateResetPassword, controller.resetPassword);
 router.put("/updatePassword", validateUpdatePassword, controller.updatePassword);
 router.put("/updateBlockStatus", validateUpdateBlockStatus, controller.updateBlockStatus);
+router.put(
+  "/updateInsuranceStatus",
+  validateUpdateUserIns,
+  controller.updateInsuranceStatus
+);
 router.put(
   "/updateDeactivateStatus",
   validateUpdateDeactivateStatus,
