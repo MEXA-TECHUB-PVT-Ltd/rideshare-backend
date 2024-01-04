@@ -32,6 +32,11 @@ exports.updateUsersSchema = Joi.object()
   })
   .pattern(Joi.string(), Joi.any().optional());
 
+exports.updateInsSchema = Joi.object({
+  user_id: Joi.number().required(),
+  status: Joi.string().required().valid("contacted"),
+});
+
 exports.delPreferencesSchema = Joi.object({
   user_id: Joi.number().required(),
   chattiness_preference_id: Joi.number().optional(),
@@ -267,7 +272,7 @@ exports.updateContactSchema = Joi.object({
 });
 exports.updateStatusContactSchema = Joi.object({
   id: Joi.number().required(),
-  status: Joi.string().required().valid("contacted", "dismissed"),
+  status: Joi.string().required().valid("contacted", "dismissed", "pending"),
 });
 
 // notification_types
@@ -338,5 +343,13 @@ exports.updatePreferencesSchema = Joi.object({
 
 // queries
 exports.appLinkSchema = Joi.object({
-  url: Joi.string().required(),
+  url: Joi.string()
+    .uri({ scheme: ["http", "https"] }) // Validates for 'http' and 'https' URLs
+    .required()
+    .messages({
+      "string.base": `"url" should be a type of 'text'`,
+      "string.empty": `"url" cannot be an empty field`,
+      "string.uri": `"url" must be a valid URL`,
+      "any.required": `"url" is a required field`,
+    }),
 });

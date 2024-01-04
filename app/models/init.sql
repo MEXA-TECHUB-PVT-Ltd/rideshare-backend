@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users(
   complementary_address TEXT,
   location jsonb,
   insurance_status BOOLEAN DEFAULT FALSE,
+  connected_insurances_user TEXT DEFAULT "pending",
   block_status BOOLEAN DEFAULT FALSE,
   payment_status BOOLEAN DEFAULT FALSE,
   deactivated BOOLEAN DEFAULT FALSE,
