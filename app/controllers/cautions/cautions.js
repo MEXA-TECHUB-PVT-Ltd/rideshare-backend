@@ -1,13 +1,28 @@
 const { pool } = require("../../config/db.config");
+const {
+  validateFile,
+  createCautionSchema,
+  updateCautionSchema,
+} = require("../../lib/validation.dto");
 const { responseHandler } = require("../../utils/commonResponse");
-const { createRecord, updateRecord, getAll, getSingle, deleteSingle, deleteAll } = require("../../utils/dbHeplerFunc");
+const {
+  createRecord,
+  updateRecord,
+  getAll,
+  getSingle,
+  deleteSingle,
+  deleteAll,
+} = require("../../utils/dbHeplerFunc");
 
 exports.create = async (req, res) => {
-  const { name, uploaded_icon_id } = req.body;
-  const cautionData = { name, uploaded_icon_id };
-
   try {
-    // Insert the caution record
+    await createCautionSchema.validateAsync(req.body);
+    validateFile(req.file);
+
+    const { name } = req.body;
+    const icon = req.file.path;
+    const cautionData = { name, icon };
+
     const insertResult = await createRecord("cautions", cautionData, []);
 
     if (insertResult.error) {
@@ -19,50 +34,45 @@ exports.create = async (req, res) => {
       );
     }
 
-    // Fetch the joined data
-    const cautionId = insertResult.data.id;
-    const joinedDataResult = await joinQueryFunction(cautionId); 
-
-    if (joinedDataResult.error) {
-      return responseHandler(
-        res,
-        joinedDataResult.status,
-        false,
-        joinedDataResult.message
-      );
-    }
-
     return responseHandler(
       res,
       201,
       true,
       "Caution added successfully!",
-      joinedDataResult.data
+      insertResult.data
     );
   } catch (error) {
-    console.error(error);
+    if (error.isJoi) {
+      // Joi validation error handling
+      const validationMessages = error.details
+        .map((detail) => detail.message)
+        .join(", ");
+      return res
+        .status(400)
+        .send({ success: false, message: validationMessages });
+    }
+
+    if (error.message === "FileError") {
+      return responseHandler(res, 400, false, "File is required");
+    }
+
+    console.error("Common Error", error);
+
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
 
 
-
-
 exports.update = async (req, res) => {
-  const {
-    id,
-    name, 
-    uploaded_icon_id,
-  } = req.body;
-
-  // Prepare the data for updating
-  const cautionData = {
-    id,
-    name,
-    uploaded_icon_id,
-  };
-
   try {
+    await updateCautionSchema.validateAsync(req.body);
+    validateFile(req.file); // Ensure this doesn't throw an error when the file isn't provided
+
+    const { id, name } = req.body;
+    const icon = req.file.path;
+
+    const cautionData = { id, name, icon };
+
     const result = await updateRecord("cautions", cautionData, [], {
       column: "id",
       value: id,
@@ -71,41 +81,40 @@ exports.update = async (req, res) => {
     if (result.error) {
       return responseHandler(res, result.status, false, result.message);
     }
-    const cautionId = result.id;
-    const joinedDataResult = await joinQueryFunction(cautionId);
-
-    if (joinedDataResult.error) {
-      return responseHandler(
-        res,
-        joinedDataResult.status,
-        false,
-        joinedDataResult.message
-      );
-    }
 
     return responseHandler(
       res,
-      201,
+      200, // Status code changed to 200 for successful update
       true,
-      "Caution added successfully!",
-      joinedDataResult.data
+      "Caution updated successfully!",
+      result
     );
   } catch (error) {
-    console.error(error);
+    if (error.isJoi) {
+      const validationMessages = error.details
+        .map((detail) => detail.message)
+        .join(", ");
+      return responseHandler(res, 400, false, validationMessages);
+    }
+
+    if (error.message === "FileError") {
+      return responseHandler(res, 400, false, "File is required");
+    }
+
+    console.error("Update Error:", error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
 
 exports.getAll = async (req, res) => {
   getAll(
     req,
     res,
     "cautions",
-    "id", 
-    "cautions.id, cautions.name, cautions.created_at, cautions.updated_at",
-    {}, 
-    "LEFT JOIN uploads ON cautions.uploaded_icon_id = uploads.id", 
-    "uploads.file_name AS icon_file_name, uploads.mime_type AS icon_mime_type" 
+    "id",
+    "*",
+    {},
   );
 };
 
@@ -115,15 +124,11 @@ exports.get = async (req, res) => {
     res,
     "cautions",
     "id",
-    "cautions.id, cautions.name, cautions.created_at, cautions.updated_at",
-    "LEFT JOIN uploads ON cautions.uploaded_icon_id = uploads.id",
-    "uploads.file_name AS icon_file_name, uploads.mime_type AS icon_mime_type"
+    "*",
   );
 };
 exports.delete = async (req, res) => deleteSingle(req, res, "cautions");
 exports.deleteAll = async (req, res) => deleteAll(req, res, "cautions");
-
-
 
 async function joinQueryFunction(cautionId) {
   const query = `

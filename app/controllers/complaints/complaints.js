@@ -94,10 +94,7 @@ exports.getAll = async (req, res) => {
       'first_name', u1.first_name,
       'last_name', u1.last_name,
       'email', u1.email,
-      'profile_picture', json_build_object(
-        'id', up1.id,
-        'file_name', up1.file_name
-      )
+      'profile_uri', u1.profile_uri,
     ) as user_details,
     json_build_object(
       'id', u2.id,
@@ -105,17 +102,12 @@ exports.getAll = async (req, res) => {
       'last_name', u2.last_name,
       'email', u2.email,
       'block_status', u2.block_status,
-      'profile_picture', json_build_object(
-        'id', up2.id,
-        'file_name', up2.file_name
-      )
+      'profile_uri', u2.profile_uri,
     ) as rider_details`;
 
   const join = `
     LEFT JOIN users u1 ON complaints.user_id = u1.id
-    LEFT JOIN uploads up1 ON u1.profile_picture = up1.id
-    LEFT JOIN users u2 ON complaints.rider_id = u2.id
-    LEFT JOIN uploads up2 ON u2.profile_picture = up2.id`;
+    LEFT JOIN users u2 ON complaints.rider_id = u2.id`;
 
   return getAll(
     req,
@@ -135,24 +127,16 @@ exports.getAllComplaintsByUser = async (req, res) => {
     complaints.*,
     json_build_object(
       'id', u1.id,
-      'profile_picture', json_build_object(
-        'id', up1.id,
-        'file_name', up1.file_name
-      )
+      'profile_uri', u1.profile_uri,
     ) as user_details,
     json_build_object(
       'id', u2.id,
-      'profile_picture', json_build_object(
-        'id', up2.id,
-        'file_name', up2.file_name
-      )
+      'profile_uri', u2.profile_uri,
     ) as rider_details`;
 
   const join = `
     LEFT JOIN users u1 ON complaints.user_id = u1.id
-    LEFT JOIN uploads up1 ON u1.profile_picture = up1.id
-    LEFT JOIN users u2 ON complaints.rider_id = u2.id
-    LEFT JOIN uploads up2 ON u2.profile_picture = up2.id`;
+    LEFT JOIN users u2 ON complaints.rider_id = u2.id`;
 
   const additionalFilters = { "complaints.user_id": user_id };
 

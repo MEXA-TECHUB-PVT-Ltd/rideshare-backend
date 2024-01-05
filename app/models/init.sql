@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS preferences (
   id SERIAL PRIMARY KEY,
   type TEXT NOT NULL,
   -- 'chattiness', 'music', 'smoking', 'pets'
-  icon INT REFERENCES uploads(id) ON DELETE CASCADE,
+  icon TEXT,
   prompt TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users(
   last_name TEXT,
   date_of_birth TIMESTAMP WITH TIME ZONE,
   gender TEXT,
-  profile_picture INT REFERENCES uploads(id) ON DELETE CASCADE,
+  profile_uri TEXT,
   about VARCHAR(255),
   phone INT,
   post_address TEXT,
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS vehicles_details(
 CREATE TABLE IF NOT EXISTS cautions(
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  uploaded_icon_id INT REFERENCES uploads(id) ON DELETE CASCADE,
+  icon TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

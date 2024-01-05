@@ -1,4 +1,9 @@
 const { pool } = require("../../config/db.config");
+const {
+  preferencesSchema,
+  updatePreferencesSchema,
+  validateFile,
+} = require("../../lib/validation.dto");
 const { responseHandler } = require("../../utils/commonResponse");
 const {
   createRecord,
@@ -9,17 +14,27 @@ const {
   deleteAll,
 } = require("../../utils/dbHeplerFunc");
 
+
 exports.create = async (req, res) => {
-  const { type, icon, prompt } = req.body;
-
-  // Prepare the data for insertion
-  const preferenceData = {
-    type,
-    icon,
-    prompt,
-  };
-
   try {
+    // Validate the request body using Joi
+    await preferencesSchema.validateAsync(req.body);
+
+    // Additional file validation
+    validateFile(req.file);
+
+    // Extract the necessary fields from the validated data
+    const { type, prompt } = req.body;
+    const iconPath = req.file.path;
+
+    // Prepare the data for insertion
+    const preferenceData = {
+      type,
+      icon: iconPath,
+      prompt,
+    };
+
+    // Insert the data into the database (assuming createRecord handles this)
     const createdResult = await createRecord("preferences", preferenceData, []);
 
     if (createdResult.error) {
@@ -30,145 +45,100 @@ exports.create = async (req, res) => {
         createdResult.message
       );
     }
-
-    const preferenceId = createdResult.data.id;
-    const query = `
-      SELECT json_build_object(
-        'id', preferences.id,
-        'type', preferences.type,
-        'prompt', preferences.prompt,
-        'icon', json_build_object(
-          'id', uploads.id,
-          'file_name', uploads.file_name,
-          'file_type', uploads.file_type,
-          'mime_type', uploads.mime_type
-        )
-      ) as preference_data
-      FROM preferences 
-      LEFT JOIN uploads ON preferences.icon = uploads.id 
-      WHERE preferences.id = $1`;
-
-    const result = await pool.query(query, [preferenceId]);
-
-    if (result.rowCount === 0) {
-      return responseHandler(
-        res,
-        404,
-        false,
-        "Preference created but not found"
-      );
-    }
-
-    console.log(result);
     return responseHandler(
       res,
       201,
       true,
       "preferences added successfully!",
-      result.rows[0].preference_data
+      createdResult.data
     );
   } catch (error) {
+    if (error.isJoi) {
+      const validationMessages = error.details
+        .map((detail) => detail.message)
+        .join(", ");
+      return res
+        .status(400)
+        .send({ success: false, message: validationMessages });
+    }
+
+    if (error.message === "FileError") {
+      return responseHandler(res, 400, false, "File is required");
+    }
+    // Handle other types of errors (like file validation errors, database errors, etc.)
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
 
 exports.update = async (req, res) => {
-  const { id, type, icon, prompt } = req.body;
-
-  // Prepare the data for updating
-  const preferenceData = {
-    type,
-    icon,
-    prompt,
-  };
-
   try {
-    const updatedResult = await updateRecord("preferences", preferenceData, [], {
-      column: "id",
-      value: id,
-    });
+    // Validate the request body using Joi
+    await updatePreferencesSchema.validateAsync(req.body);
+
+    // Additional file validation
+    validateFile(req.file);
+
+    const { id, type, prompt } = req.body;
+    const path = req.file.path;
+
+    // Prepare the data for updating
+    const preferenceData = {
+      type,
+      icon: path,
+      prompt,
+    };
+
+    const updatedResult = await updateRecord(
+      "preferences",
+      preferenceData,
+      [],
+      {
+        column: "id",
+        value: id,
+      }
+    );
 
     if (updatedResult.error) {
-      return responseHandler(res, updatedResult.status, false, updatedResult.message);
-    }
-    const query = `
-      SELECT json_build_object(
-        'id', preferences.id,
-        'type', preferences.type,
-        'prompt', preferences.prompt,
-        'icon', json_build_object(
-          'id', uploads.id,
-          'file_name', uploads.file_name,
-          'file_type', uploads.file_type,
-          'mime_type', uploads.mime_type
-        )
-      ) as preference_data
-      FROM preferences 
-      LEFT JOIN uploads ON preferences.icon = uploads.id 
-      WHERE preferences.id = $1`;
-
-    const result = await pool.query(query, [id]);
-
-    if (result.rowCount === 0) {
       return responseHandler(
         res,
-        404,
+        updatedResult.status,
         false,
-        "Preference created but not found"
+        updatedResult.message
       );
     }
-
-    console.log(result);
     return responseHandler(
       res,
       201,
       true,
       "preferences updated successfully!",
-      result.rows[0].preference_data
+      updatedResult
     );
   } catch (error) {
+    if (error.isJoi) {
+      const validationMessages = error.details
+        .map((detail) => detail.message)
+        .join(", ");
+      return res
+        .status(400)
+        .send({ success: false, message: validationMessages });
+    }
+
+    if (error.message === "FileError") {
+      return responseHandler(res, 400, false, "File is required");
+    }
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
 
 exports.getAll = async (req, res) => {
-    const fields = `
-    preferences.*,
-    json_build_object(
-      'id', uploads.id,
-      'file_name', uploads.file_name,
-      'file_type', uploads.file_type,
-      'mime_type', uploads.mime_type
-    ) as icon_details`;
-
-  const join = `
-    LEFT JOIN uploads ON preferences.icon = uploads.id`;
-  return getAll(
-    req,
-    res,
-    "preferences",
-    "created_at",
-    fields,
-    {},
-    join
-  );
-} ;
+  return getAll(req, res, "preferences", "created_at", "*", {});
+};
 exports.getAllPreferencesByType = async (req, res) => {
-  const { type } = req.params; 
+  const { type } = req.params;
 
-  const fields = `
-    preferences.*,
-    json_build_object(
-      'id', uploads.id,
-      'file_name', uploads.file_name,
-      'file_type', uploads.file_type,
-      'mime_type', uploads.mime_type
-    ) as icon_details`;
 
-  const join = `
-    LEFT JOIN uploads ON preferences.icon = uploads.id`;
 
   const additionalFilters = { "preferences.type": type };
 
@@ -177,9 +147,8 @@ exports.getAllPreferencesByType = async (req, res) => {
     res,
     "preferences",
     "created_at",
-    fields,
+    "*",
     additionalFilters,
-    join
   );
 };
 

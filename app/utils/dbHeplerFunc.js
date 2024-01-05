@@ -10,6 +10,7 @@ const { checkUserExists } = require("./dbValidations");
 const tableFieldExclusions = {
   users: ["password", "otp"], // Add other tables and fields as needed
 };
+
 exports.getAll = async (
   req,
   res,
@@ -23,7 +24,7 @@ exports.getAll = async (
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 100;
   const sortField = req.query.sortField || defaultSortField;
-  const sortOrder = req.query.sortOrder || "desc";
+  const sortOrder = req.query.sortOrder || "DESC";
 
   try {
     // Adjust fields based on the table, exclusions, and JOINs

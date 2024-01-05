@@ -69,6 +69,7 @@ exports.updatePasswordSchema = Joi.object({
   email: Joi.string().email().required(),
   old_password: Joi.string().required(),
   new_password: Joi.string().min(5).required(),
+  role: Joi.string().optional().valid("user", "admin"),
 });
 exports.updateBlockStatusSchema = Joi.object({
   id: Joi.number().required(),
@@ -109,12 +110,10 @@ exports.updateVehicleDetailsSchema = Joi.object()
 // cautions
 exports.createCautionSchema = Joi.object({
   name: Joi.string().required(),
-  uploaded_icon_id: Joi.number().required(),
 });
 exports.updateCautionSchema = Joi.object({
   id: Joi.number().required(),
   name: Joi.string().required(),
-  uploaded_icon_id: Joi.number().required(),
 });
 
 // passenger_rates
@@ -331,13 +330,11 @@ exports.updateComplaintSchema = Joi.object({
 // preferences
 exports.preferencesSchema = Joi.object({
   type: Joi.string().required().valid("chattiness", "music", "smoking", "pets"),
-  icon: Joi.number().required(),
   prompt: Joi.string().required(),
 });
 exports.updatePreferencesSchema = Joi.object({
   id: Joi.number().required(),
   type: Joi.string().required().valid("chattiness", "music", "smoking", "pets"),
-  icon: Joi.number().required(),
   prompt: Joi.string().required(),
 });
 
@@ -353,3 +350,11 @@ exports.appLinkSchema = Joi.object({
       "any.required": `"url" is a required field`,
     }),
 });
+
+
+
+exports.validateFile = (file) => {
+  if (!file) {
+    throw new Error("FileError");
+  }
+};
