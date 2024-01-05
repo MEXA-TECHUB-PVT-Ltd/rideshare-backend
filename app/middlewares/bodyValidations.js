@@ -15,7 +15,6 @@ exports.validateUser = (req, res, next) => {
       details: errorMessage,
     });
   }
-
   next();
 };
 exports.validateUpdateUser = (req, res, next) => {

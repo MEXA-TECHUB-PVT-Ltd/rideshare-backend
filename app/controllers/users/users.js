@@ -204,7 +204,7 @@ exports.update = async (req, res) => {
     first_name,
     date_of_birth,
     gender,
-    profile_image_id,
+    profile_uri,
     complementary_address,
     post_address,
     phone,
@@ -274,29 +274,20 @@ exports.update = async (req, res) => {
     if (insurance_status !== undefined)
       userData.insurance_status = insurance_status;
     if (location !== undefined) userData.location = location;
-    if (profile_image_id !== undefined)
-      userData.profile_picture = profile_image_id;
+    if (profile_uri !== undefined)
+      userData.profile_uri = profile_uri; 
 
     if (Object.keys(userData).length === 0) {
       return responseHandler(res, 400, false, "No update information provided");
     }
 
-    await updateRecord("users", userData, ["password", "otp", "admin_name"], {
+    const updateResult = await updateRecord("users", userData, ["password", "otp", "admin_name"], {
       column: "id",
       value: id,
     });
 
-    const result = await pool.query(
-      `SELECT u.*, json_build_object('file_name', up.file_name,
-           'file_type', up.file_type,
-           'mime_type', up.mime_type) AS profile_picture_details
-       FROM users u
-       LEFT JOIN uploads up ON u.profile_picture = up.id
-       WHERE u.id = $1`,
-      [id]
-    );
 
-    if (result.rowCount === 0) {
+    if (updateResult.error) {
       return responseHandler(
         res,
         500,
@@ -305,16 +296,12 @@ exports.update = async (req, res) => {
       );
     }
 
-    delete result.rows[0].password;
-    delete result.rows[0].otp;
-    delete result.rows[0].admin_name;
-
     return responseHandler(
       res,
       200,
       true,
       "User updated successfully!",
-      result.rows[0]
+      updateResult
     );
   } catch (error) {
     console.error(error);
@@ -567,13 +554,14 @@ exports.resetPassword = async (req, res) => {
 
 exports.updatePassword = async (req, res) => {
   const { email, old_password, new_password, role } = req.body;
+  console.log(role)
   const defaultRole = role ? role : "user";
   try {
     const user = await checkUserExists("users", "email", email, [
       { column: "role", value: defaultRole },
     ]);
     if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found");
+      return responseHandler(res, 404, false, `${defaultRole} not found`);
     }
     user.rows[0].password;
     if (user.rows[0].password != null) {
@@ -636,129 +624,143 @@ exports.getAllUserByInsuranceStatus = async (req, res) => {
 exports.getAllUsersWithDetails = async (req, res) => {
   const fields = `
   users.*,
-  (SELECT json_build_object(
-    'id', uploads.id,
-    'file_name', uploads.file_name,
-    'file_type', uploads.file_type,
-    'mime_type', uploads.mime_type
-  ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
-  (
-    SELECT json_agg(
-      json_build_object(
-        'preference_id', cp.chattiness_preference_id,
-        'preference_type', p.type,
-        'preference_prompt', p.prompt,
-        'icon', json_build_object(
-          'file_name', upl.file_name,
-          'file_type', upl.file_type,
-          'mime_type', upl.mime_type
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ucp.chattiness_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
         )
       )
-    )
-    FROM user_chattiness_preferences cp
-    JOIN preferences p ON cp.chattiness_preference_id = p.id
-    LEFT JOIN uploads upl ON p.icon = upl.id
-    WHERE cp.user_id = users.id
+      FROM user_chattiness_preferences ucp
+      INNER JOIN preferences p ON ucp.chattiness_preference_id = p.id
+      WHERE ucp.user_id = users.id
+    ),
+    '[]'::json
   ) AS chattiness_preferences,
-  (
-    SELECT json_agg(
-      json_build_object(
-        'preference_id', mp.music_preference_id,
-        'preference_type', p.type,
-        'preference_prompt', p.prompt,
-        'icon', json_build_object(
-          'file_name', upl.file_name,
-          'file_type', upl.file_type,
-          'mime_type', upl.mime_type
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ump.music_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
         )
       )
-    )
-    FROM user_music_preferences mp
-    JOIN preferences p ON mp.music_preference_id = p.id
-    LEFT JOIN uploads upl ON p.icon = upl.id
-    WHERE mp.user_id = users.id
+      FROM user_music_preferences ump
+      INNER JOIN preferences p ON ump.music_preference_id = p.id
+      WHERE ump.user_id = users.id
+    ),
+    '[]'::json
   ) AS music_preferences,
-  (
-    SELECT json_agg(
-      json_build_object(
-        'preference_id', sp.smoking_preference_id,
-        'preference_type', p.type,
-        'preference_prompt', p.prompt,
-        'icon', json_build_object(
-          'file_name', upl.file_name,
-          'file_type', upl.file_type,
-          'mime_type', upl.mime_type
+
+ COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', usp.smoking_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
         )
       )
-    )
-    FROM user_smoking_preferences sp
-    JOIN preferences p ON sp.smoking_preference_id = p.id
-    LEFT JOIN uploads upl ON p.icon = upl.id
-    WHERE sp.user_id = users.id
+      FROM user_smoking_preferences usp
+      INNER JOIN preferences p ON usp.smoking_preference_id = p.id
+      WHERE usp.user_id = users.id
+    ),
+    '[]'::json
   ) AS smoking_preferences,
-  (
-    SELECT json_agg(
-      json_build_object(
-        'preference_id', pp.pets_preference_id,
-        'preference_type', p.type,
-        'preference_prompt', p.prompt,
-        'icon', json_build_object(
-          'file_name', upl.file_name,
-          'file_type', upl.file_type,
-          'mime_type', upl.mime_type
+   COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', upp.pets_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
         )
       )
-    )
-    FROM user_pets_preferences pp
-    JOIN preferences p ON pp.pets_preference_id = p.id
-    LEFT JOIN uploads upl ON p.icon = upl.id
-    WHERE pp.user_id = users.id
+      FROM user_pets_preferences upp
+      INNER JOIN preferences p ON upp.pets_preference_id = p.id
+      WHERE upp.user_id = users.id
+    ),
+    '[]'::json
   ) AS pets_preferences,
-(SELECT json_agg(json_build_object(
-    'id', vehicles_details.id,
-    'user_id', vehicles_details.user_id,
-    'license_plate_no', vehicles_details.license_plate_no,
-    'vehicle_brand', vehicles_details.vehicle_brand,
-    'vehicle_model', vehicles_details.vehicle_model,
-    'registration_no', vehicles_details.registration_no,
-    'driving_license_no', vehicles_details.driving_license_no,
-    'license_expiry_date', vehicles_details.license_expiry_date,
-    'personal_insurance', vehicles_details.personal_insurance,
-    'vehicle_type', (SELECT json_build_object(
-        'id', vehicle_types.id,
-        'name', vehicle_types.name
-      ) FROM vehicle_types WHERE vehicle_types.id = vehicles_details.vehicle_type_id),
-    'vehicle_color', (SELECT json_build_object(
-        'id', vehicle_colors.id,
-        'name', vehicle_colors.name,
-        'code', vehicle_colors.code
-      ) FROM vehicle_colors WHERE vehicle_colors.id = vehicles_details.vehicle_color_id),
-    'created_at', vehicles_details.created_at,
-    'updated_at', vehicles_details.updated_at
-  )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
-  (SELECT json_agg(json_build_object(
-    'id', rides.id,
-    'pickup_location', rides.pickup_location,
-    'drop_off_location', rides.drop_off_location,
-    'ride_date', rides.ride_date,
-    'ride_status', rides.ride_status,
-    'caution_details', (SELECT json_agg(json_build_object(
-      'id', cautions.id,
-      'name', cautions.name,
-      'uploaded_icon_id', cautions.uploaded_icon_id
-    )) FROM unnest(rides.cautions) AS caution_id LEFT JOIN cautions ON cautions.id = caution_id)
-  )) FROM rides WHERE rides.user_id = users.id) AS ride_details,
-  (SELECT json_agg(json_build_object(
-      'id', bank_details.id,
-      'cardholder_name', bank_details.cardholder_name,
-      'card_number', bank_details.card_number,
-      'expiry_date', bank_details.expiry_date,
-      'cvv', bank_details.cvv
-    )) FROM bank_details WHERE bank_details.user_id = users.id) AS bank_details
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', vd.id,
+          'user_id', vd.user_id,
+          'license_plate_no', vd.license_plate_no,
+          'vehicle_brand', vd.vehicle_brand,
+          'vehicle_model', vd.vehicle_model,
+          'registration_no', vd.registration_no,
+          'driving_license_no', vd.driving_license_no,
+          'license_expiry_date', vd.license_expiry_date,
+          'personal_insurance', vd.personal_insurance
+        )
+      )
+      FROM vehicles_details vd
+      WHERE vd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS vehicles_details,
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', r.id,
+          'pickup_location', r.pickup_location,
+          'drop_off_location', r.drop_off_location,
+          'ride_date', r.ride_date,
+          'ride_status', r.ride_status,
+          'caution_details', (
+            SELECT json_agg(
+              json_build_object(
+                'id', c.id,
+                'name', c.name,
+                'icon', c.icon
+              )
+            )
+            FROM unnest(r.cautions) AS caution_id
+            INNER JOIN cautions c ON c.id = caution_id
+          )
+        )
+      )
+      FROM rides r
+      WHERE r.user_id = users.id
+    ),
+    '[]'::json
+  ) AS ride_details,
+  COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', bd.id,
+          'cardholder_name', bd.cardholder_name,
+          'card_number', bd.card_number,
+          'expiry_date', bd.expiry_date,
+          'cvv', bd.cvv
+        )
+      )
+      FROM bank_details bd
+      WHERE bd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS bank_details
 `;
 
   const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
-  let whereClause = " WHERE users.deleted_at IS NULL";
+  let whereClause = "WHERE users.deleted_at IS NULL AND role = 'user'";
 
   return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };
@@ -766,57 +768,139 @@ exports.getAllUsersWithDetails = async (req, res) => {
 exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
   const fields = `
   users.*,
-  (SELECT json_build_object(
-    'id', uploads.id,
-    'file_name', uploads.file_name,
-    'file_type', uploads.file_type,
-    'mime_type', uploads.mime_type
-  ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
-(SELECT json_agg(json_build_object(
-    'id', preferences.id,
-    'type', preferences.type,
-    'icon', (SELECT json_build_object(
-        'id', uploads.id,
-        'file_name', uploads.file_name,
-        'file_type', uploads.file_type,
-        'mime_type', uploads.mime_type
-      ) FROM uploads WHERE uploads.id = preferences.icon),
-    'prompt', preferences.prompt
-  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
-(SELECT json_agg(json_build_object(
-    'id', vehicles_details.id,
-    'user_id', vehicles_details.user_id,
-    'license_plate_no', vehicles_details.license_plate_no,
-    'vehicle_brand', vehicles_details.vehicle_brand,
-    'vehicle_model', vehicles_details.vehicle_model,
-    'registration_no', vehicles_details.registration_no,
-    'driving_license_no', vehicles_details.driving_license_no,
-    'license_expiry_date', vehicles_details.license_expiry_date,
-    'personal_insurance', vehicles_details.personal_insurance,
-    'vehicle_type', (SELECT json_build_object(
-        'id', vehicle_types.id,
-        'name', vehicle_types.name
-      ) FROM vehicle_types WHERE vehicle_types.id = vehicles_details.vehicle_type_id),
-    'vehicle_color', (SELECT json_build_object(
-        'id', vehicle_colors.id,
-        'name', vehicle_colors.name,
-        'code', vehicle_colors.code
-      ) FROM vehicle_colors WHERE vehicle_colors.id = vehicles_details.vehicle_color_id),
-    'created_at', vehicles_details.created_at,
-    'updated_at', vehicles_details.updated_at
-  )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
-  (SELECT json_agg(json_build_object(
-    'id', rides.id,
-    'pickup_location', rides.pickup_location,
-    'drop_off_location', rides.drop_off_location,
-    'ride_date', rides.ride_date,
-    'ride_status', rides.ride_status,
-    'caution_details', (SELECT json_agg(json_build_object(
-      'id', cautions.id,
-      'name', cautions.name,
-      'uploaded_icon_id', cautions.uploaded_icon_id
-    )) FROM unnest(rides.cautions) AS caution_id LEFT JOIN cautions ON cautions.id = caution_id)
-  )) FROM rides WHERE rides.user_id = users.id) AS ride_details
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ucp.chattiness_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_chattiness_preferences ucp
+      INNER JOIN preferences p ON ucp.chattiness_preference_id = p.id
+      WHERE ucp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS chattiness_preferences,
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ump.music_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_music_preferences ump
+      INNER JOIN preferences p ON ump.music_preference_id = p.id
+      WHERE ump.user_id = users.id
+    ),
+    '[]'::json
+  ) AS music_preferences,
+
+ COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', usp.smoking_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_smoking_preferences usp
+      INNER JOIN preferences p ON usp.smoking_preference_id = p.id
+      WHERE usp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS smoking_preferences,
+   COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', upp.pets_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_pets_preferences upp
+      INNER JOIN preferences p ON upp.pets_preference_id = p.id
+      WHERE upp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS pets_preferences,
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', vd.id,
+          'user_id', vd.user_id,
+          'license_plate_no', vd.license_plate_no,
+          'vehicle_brand', vd.vehicle_brand,
+          'vehicle_model', vd.vehicle_model,
+          'registration_no', vd.registration_no,
+          'driving_license_no', vd.driving_license_no,
+          'license_expiry_date', vd.license_expiry_date,
+          'personal_insurance', vd.personal_insurance
+        )
+      )
+      FROM vehicles_details vd
+      WHERE vd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS vehicles_details,
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', r.id,
+          'pickup_location', r.pickup_location,
+          'drop_off_location', r.drop_off_location,
+          'ride_date', r.ride_date,
+          'ride_status', r.ride_status,
+          'caution_details', (
+            SELECT json_agg(
+              json_build_object(
+                'id', c.id,
+                'name', c.name,
+                'icon', c.icon
+              )
+            )
+            FROM unnest(r.cautions) AS caution_id
+            INNER JOIN cautions c ON c.id = caution_id
+          )
+        )
+      )
+      FROM rides r
+      WHERE r.user_id = users.id
+    ),
+    '[]'::json
+  ) AS ride_details,
+  COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', bd.id,
+          'cardholder_name', bd.cardholder_name,
+          'card_number', bd.card_number,
+          'expiry_date', bd.expiry_date,
+          'cvv', bd.cvv
+        )
+      )
+      FROM bank_details bd
+      WHERE bd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS bank_details
 `;
 
   const additionalFilters = { deleted_at: "IS NOT NULL" };
@@ -829,18 +913,7 @@ exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
 
 exports.get = async (req, res) => {
   const tableName = "users";
-  const fields = `
-    users.*,
-    json_build_object(
-      'id', uploads.id,
-      'file_name', uploads.file_name,
-      'file_type', uploads.file_type,
-      'mime_type', uploads.mime_type
-    ) as profile_picture
-  `;
-  const joinTable = "uploads";
-  const joinOn = "users.profile_picture = uploads.id";
-  const joinFields = "";
+  const fields = `*`;
 
   return getSingle(
     req,
@@ -848,55 +921,146 @@ exports.get = async (req, res) => {
     tableName,
     "id",
     fields,
-    `LEFT JOIN ${joinTable} ON ${joinOn}`,
-    joinFields
   );
 };
 
 exports.getUserWithDetails = async (req, res) => {
   const fields = `
-    users.*,
-    (SELECT json_build_object(
-      'id', uploads.id,
-      'file_name', uploads.file_name,
-      'file_type', uploads.file_type,
-      'mime_type', uploads.mime_type
-    ) FROM uploads WHERE uploads.id = users.profile_picture) AS profile_picture_details,
-(SELECT json_agg(json_build_object(
-    'id', preferences.id,
-    'type', preferences.type,
-    'icon', (SELECT json_build_object(
-        'id', uploads.id,
-        'file_name', uploads.file_name,
-        'file_type', uploads.file_type,
-        'mime_type', uploads.mime_type
-      ) FROM uploads WHERE uploads.id = preferences.icon),
-    'prompt', preferences.prompt
-  )) FROM preferences WHERE preferences.id IN (users.chattiness_preference_id, users.music_preference_id, users.smoking_preference_id, users.pets_preference_id)) AS preferences_details,
-    (SELECT json_agg(json_build_object(
-      'id', vehicles_details.id,
-      'user_id', vehicles_details.user_id,
-      'license_plate_no', vehicles_details.license_plate_no,
-      'vehicle_brand', vehicles_details.vehicle_brand,
-      'vehicle_model', vehicles_details.vehicle_model,
-      'registration_no', vehicles_details.registration_no,
-      'driving_license_no', vehicles_details.driving_license_no,
-      'license_expiry_date', vehicles_details.license_expiry_date,
-      'personal_insurance', vehicles_details.personal_insurance
-    )) FROM vehicles_details WHERE vehicles_details.user_id = users.id) AS vehicles_details,
-    (SELECT json_agg(json_build_object(
-      'id', rides.id,
-      'pickup_location', rides.pickup_location,
-      'ride_date', rides.ride_date,
-      'ride_status', rides.ride_status
-    )) FROM rides WHERE rides.user_id = users.id) AS ride_details,
-        (SELECT json_agg(json_build_object(
-      'id', bank_details.id,
-      'cardholder_name', bank_details.cardholder_name,
-      'card_number', bank_details.card_number,
-      'expiry_date', bank_details.expiry_date,
-      'cvv', bank_details.cvv
-    )) FROM bank_details WHERE bank_details.user_id = users.id) AS bank_details
+  users.*,
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ucp.chattiness_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_chattiness_preferences ucp
+      INNER JOIN preferences p ON ucp.chattiness_preference_id = p.id
+      WHERE ucp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS chattiness_preferences,
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', ump.music_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_music_preferences ump
+      INNER JOIN preferences p ON ump.music_preference_id = p.id
+      WHERE ump.user_id = users.id
+    ),
+    '[]'::json
+  ) AS music_preferences,
+
+ COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', usp.smoking_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_smoking_preferences usp
+      INNER JOIN preferences p ON usp.smoking_preference_id = p.id
+      WHERE usp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS smoking_preferences,
+   COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'preference_id', upp.pets_preference_id,
+          'preference_type', p.type,
+          'preference_prompt', p.prompt,
+          'icon', p.icon
+        )
+      )
+      FROM user_pets_preferences upp
+      INNER JOIN preferences p ON upp.pets_preference_id = p.id
+      WHERE upp.user_id = users.id
+    ),
+    '[]'::json
+  ) AS pets_preferences,
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', vd.id,
+          'user_id', vd.user_id,
+          'license_plate_no', vd.license_plate_no,
+          'vehicle_brand', vd.vehicle_brand,
+          'vehicle_model', vd.vehicle_model,
+          'registration_no', vd.registration_no,
+          'driving_license_no', vd.driving_license_no,
+          'license_expiry_date', vd.license_expiry_date,
+          'personal_insurance', vd.personal_insurance
+        )
+      )
+      FROM vehicles_details vd
+      WHERE vd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS vehicles_details,
+
+
+    COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', r.id,
+          'pickup_location', r.pickup_location,
+          'drop_off_location', r.drop_off_location,
+          'ride_date', r.ride_date,
+          'ride_status', r.ride_status,
+          'caution_details', (
+            SELECT json_agg(
+              json_build_object(
+                'id', c.id,
+                'name', c.name,
+                'icon', c.icon
+              )
+            )
+            FROM unnest(r.cautions) AS caution_id
+            INNER JOIN cautions c ON c.id = caution_id
+          )
+        )
+      )
+      FROM rides r
+      WHERE r.user_id = users.id
+    ),
+    '[]'::json
+  ) AS ride_details,
+  COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object(
+          'id', bd.id,
+          'cardholder_name', bd.cardholder_name,
+          'card_number', bd.card_number,
+          'expiry_date', bd.expiry_date,
+          'cvv', bd.cvv
+        )
+      )
+      FROM bank_details bd
+      WHERE bd.user_id = users.id
+    ),
+    '[]'::json
+  ) AS bank_details
+
   `;
 
   const join = ``;
@@ -906,7 +1070,14 @@ exports.getUserWithDetails = async (req, res) => {
 
 exports.delete = async (req, res) => deleteSingle(req, res, "users");
 
-exports.deleteAll = async (req, res) => deleteAll(req, res, "users");
+exports.deleteAll = async (req, res) => {
+  // Define the filter for role
+  const filters = { role: "user" };
+
+  // Call the generic deleteAll function with the specified filter
+  return deleteAll(req, res, "users", filters);
+};
+
 exports.search = async (req, res) =>
   search(req, res, "users", ["first_name", "email"], "created_at", "", "", [
     "password",

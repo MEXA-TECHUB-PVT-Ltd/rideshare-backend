@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 // project file directories
 const controller = require("../../controllers/preferences/preferences");
 const {
@@ -7,9 +8,21 @@ const {
   validateUpdatePreferences,
   validatePreferences,
 } = require("../../middlewares/bodyValidations");
+const { cloudinaryUpload } = require("../../middlewares/uploads");
 
-router.post("/create", validatePreferences, controller.create);
-router.put("/update", validateUpdatePreferences, controller.update);
+
+router.post(
+  "/create",
+  // validatePreferences,
+  cloudinaryUpload.single("file"),
+  controller.create
+);
+router.put(
+  "/update",
+  // validateUpdatePreferences,
+  cloudinaryUpload.single("file"),
+  controller.update
+);
 router.get("/get/:id", controller.get);
 router.get("/getAllPreferencesByType/:type", controller.getAllPreferencesByType);
 router.get("/getAll", queryValidation, controller.getAll);

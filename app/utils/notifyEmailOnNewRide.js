@@ -92,9 +92,11 @@ async function findMatchingNotifications(
       })
       .map(async (notification) => {
         const user = await checkUserExists("users", "id", notification.user_id);
+        console.log(user.rows[0])
         if (user.rowCount === 0) {
           console.error("user not found");
         }
+        
         return {
           user_email: user.rows[0].email,
           ...notification,

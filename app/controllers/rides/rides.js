@@ -20,6 +20,7 @@ const {
 } = require("../../utils/renderEmail");
 const sendEmail = require("../../lib/sendEmail");
 
+// TODO: ISSUE: Notify user not found giving error!
 exports.publishRides = async (req, res) => {
   const {
     user_id,
@@ -87,7 +88,11 @@ exports.publishRides = async (req, res) => {
       return responseHandler(res, 404, false, "vehicle_details not found");
     }
 
-    notifyUsersForNewRide(rideData);
+    try {
+      notifyUsersForNewRide(rideData);
+    } catch (error) {
+      console.error(error);
+    }
     const createResult = await createRecord("rides", rideData, []);
 
     if (createResult.error) {
@@ -288,12 +293,21 @@ JOIN
 };
 
 exports.get = async (req, res) => {
-  const join = `
+const join = `
   JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
   JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
   JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
   JOIN users ON rides.user_id = users.id AND users.deleted_at IS NULL
   LEFT JOIN rides AS return_rides ON rides.return_ride_id = return_rides.id
+  LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(rides.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON rides.cautions IS NOT NULL AND array_length(rides.cautions, 1) > 0
 `;
 
   const joinFields = `
@@ -316,37 +330,38 @@ exports.get = async (req, res) => {
       'id', vehicles_details.vehicle_color_id
     )
   ) AS vehicle_info,
-   CASE
+  CASE
     WHEN rides.return_ride_status THEN JSON_BUILD_OBJECT(
-    'id', return_rides.id,
-    'user_id', return_rides.user_id,
-    'pickup_location', return_rides.pickup_location,
-    'pickup_address', return_rides.pickup_address,
-    'drop_off_location', return_rides.drop_off_location,
-    'drop_off_address', return_rides.drop_off_address,
-    'tolls', return_rides.tolls,
-    'route_time', return_rides.route_time,
-    'city_of_route', return_rides.city_of_route,
-    'route_miles', return_rides.route_miles,
-    'ride_date', return_rides.ride_date,
-    'time_to_pickup', return_rides.time_to_pickup,
-    'cautions', return_rides.cautions,
-    'max_passengers', return_rides.max_passengers,
-    'request_option', return_rides.request_option,
-    'price_per_seat', return_rides.price_per_seat,
-    'return_ride_status', return_rides.return_ride_status,
-    'return_ride_id', return_rides.return_ride_id,
-    'ride_status', return_rides.ride_status,
-    'vehicles_details_id', return_rides.vehicles_details_id,
-    'current_passenger_count', return_rides.current_passenger_count,
-    'wait_time', return_rides.wait_time,
-    'wait_time_cost', return_rides.wait_time_cost,
-    'canceled_reason', return_rides.canceled_reason,
-    'canceled_ride_cost', return_rides.canceled_ride_cost,
-    'ride_duration', return_rides.ride_duration,
-    'ride_end_time', return_rides.ride_end_time
-  ) ELSE NULL
-  END AS return_ride_details
+      'id', return_rides.id,
+      'user_id', return_rides.user_id,
+      'pickup_location', return_rides.pickup_location,
+      'pickup_address', return_rides.pickup_address,
+      'drop_off_location', return_rides.drop_off_location,
+      'drop_off_address', return_rides.drop_off_address,
+      'tolls', return_rides.tolls,
+      'route_time', return_rides.route_time,
+      'city_of_route', return_rides.city_of_route,
+      'route_miles', return_rides.route_miles,
+      'ride_date', return_rides.ride_date,
+      'time_to_pickup', return_rides.time_to_pickup,
+      'cautions', return_rides.cautions,
+      'max_passengers', return_rides.max_passengers,
+      'request_option', return_rides.request_option,
+      'price_per_seat', return_rides.price_per_seat,
+      'return_ride_status', return_rides.return_ride_status,
+      'return_ride_id', return_rides.return_ride_id,
+      'ride_status', return_rides.ride_status,
+      'vehicles_details_id', return_rides.vehicles_details_id,
+      'current_passenger_count', return_rides.current_passenger_count,
+      'wait_time', return_rides.wait_time,
+      'wait_time_cost', return_rides.wait_time_cost,
+      'canceled_reason', return_rides.canceled_reason,
+      'canceled_ride_cost', return_rides.canceled_ride_cost,
+      'ride_duration', return_rides.ride_duration,
+      'ride_end_time', return_rides.ride_end_time
+    ) ELSE NULL
+  END AS return_ride_details,
+  cautions_agg.cautions_details
 `;
 
   // Include only the fields from the 'rides' table in the main selection
@@ -476,14 +491,24 @@ exports.updateStatus = async (req, res) => {
 exports.getRideJoiners = async (req, res) => {
   const ride_id = parseInt(req.params.ride_id, 10);
 
-  const join = `
-    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
-    JOIN rides rd ON rj.ride_id = rd.id
-    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
-  `;
+
+const join = `
+  JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+  JOIN rides rd ON rj.ride_id = rd.id
+  JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+  JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+  JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(rd.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
+`;
+
 
   const joinFields = `
     rj.*,
@@ -493,7 +518,7 @@ exports.getRideJoiners = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'about', u.about,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'id', rd.id,
@@ -524,14 +549,16 @@ exports.getRideJoiners = async (req, res) => {
         'code', vc.code,
         'id', vc.id
       )
-    ) AS vehicle_info
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
   `;
 
   const additionalFilters = {};
   additionalFilters["rj.status"] = "accepted";
-    if (ride_id) {
-      additionalFilters["rj.ride_id"] = ride_id;
-    }
+  if (ride_id) {
+    additionalFilters["rj.ride_id"] = ride_id;
+  }
 
   getAll(
     req,
@@ -550,10 +577,18 @@ exports.getAllPublishByUser = async (req, res) => {
 
   const join = `
     JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+      LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(r.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON r.cautions IS NOT NULL AND array_length(r.cautions, 1) > 0
   `;
 
   const joinFields = `
@@ -563,7 +598,7 @@ exports.getAllPublishByUser = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
@@ -581,8 +616,10 @@ exports.getAllPublishByUser = async (req, res) => {
         'name', vc.name,
         'code', vc.code,
         'id', vc.id
-      )
-    ) AS vehicle_info
+      ) 
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
   `;
 
   getAll(
@@ -602,11 +639,18 @@ exports.getAllJoinedByUser = async (req, res) => {
 
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+LEFT JOIN LATERAL (
+  SELECT json_agg(c) AS cautions_details
+  FROM (
+    SELECT c.id, c.name, c.icon
+    FROM unnest(rd.cautions) AS caution_id
+    JOIN cautions c ON c.id = caution_id
+  ) AS c
+) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
   `;
 
   const joinFields = `
@@ -616,7 +660,7 @@ exports.getAllJoinedByUser = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'id', rd.id,
@@ -628,7 +672,8 @@ exports.getAllJoinedByUser = async (req, res) => {
       'max_passengers', rd.max_passengers,
       'price_per_seat', rd.price_per_seat,
       'return_ride_status', rd.return_ride_status,
-      'current_passenger_count', rd.current_passenger_count
+      'current_passenger_count', rd.current_passenger_count,
+      'cautions', rd.cautions
     ) AS ride_details,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
@@ -647,7 +692,9 @@ exports.getAllJoinedByUser = async (req, res) => {
         'code', vc.code,
         'id', vc.id
       )
-    ) AS vehicle_info
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
   `;
 
   const additionalFilters = {};
@@ -674,10 +721,18 @@ exports.getAllRideByStatus = async (req, res) => {
 
   const join = `
     JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+      LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(r.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON r.cautions IS NOT NULL AND array_length(r.cautions, 1) > 0
   `;
 
   const joinFields = `
@@ -687,7 +742,7 @@ exports.getAllRideByStatus = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
@@ -706,7 +761,9 @@ exports.getAllRideByStatus = async (req, res) => {
         'code', vc.code,
         'id', vc.id
       )
-    ) AS vehicle_info
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
   `;
 
   let additionalFilters = {};
@@ -732,11 +789,19 @@ exports.getAllRideByStatus = async (req, res) => {
 exports.getAllRequestedRides = async (req, res) => {
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+      LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(rd.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
   `;
 
   const joinFields = `
@@ -746,7 +811,7 @@ exports.getAllRequestedRides = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'id', rd.id,
@@ -758,7 +823,8 @@ exports.getAllRequestedRides = async (req, res) => {
       'max_passengers', rd.max_passengers,
       'price_per_seat', rd.price_per_seat,
       'return_ride_status', rd.return_ride_status,
-      'current_passenger_count', rd.current_passenger_count
+      'current_passenger_count', rd.current_passenger_count,
+      'cautions', rd.cautions
     ) AS ride_details,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
@@ -777,7 +843,8 @@ exports.getAllRequestedRides = async (req, res) => {
         'code', vc.code,
         'id', vc.id
       )
-    ) AS vehicle_info
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
   `;
 
   const additionalFilters = {};
@@ -800,11 +867,19 @@ exports.getAllRequestedByRides = async (req, res) => {
 
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    LEFT JOIN uploads up ON u.profile_picture = up.id
     JOIN rides rd ON rj.ride_id = rd.id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+          LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(rd.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
   `;
 
   const joinFields = `
@@ -814,7 +889,7 @@ exports.getAllRequestedByRides = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_picture', up.file_name
+      'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
     'id', rd.id,
@@ -854,14 +929,16 @@ exports.getAllRequestedByRides = async (req, res) => {
       'personal_insurance', vd.personal_insurance,
       'vehicle_type', JSON_BUILD_OBJECT(
         'name', vt.name,
-        'id', vt.id
+        'id', vt.id 
       ),
       'vehicle_color', JSON_BUILD_OBJECT(
         'name', vc.name,
         'code', vc.code,
         'id', vc.id
       )
-    ) AS vehicle_info
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
   `;
 
   const additionalFilters = {
