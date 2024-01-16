@@ -1,3 +1,4 @@
+const { pool } = require("../../config/db.config");
 const { responseHandler } = require("../../utils/commonResponse");
 const {
   createRecord,
@@ -20,6 +21,20 @@ exports.create = async (req, res) => {
   };
 
   try {
+    const existingRates = await pool.query(
+      "SELECT * FROM driver_rates WHERE NOT (end_range <= $1 OR start_range >= $2)",
+      [start_range, end_range]
+    );
+
+    // Check if there are existing overlapping rates
+    if (existingRates.rows && existingRates.rows.length > 0) {
+      return responseHandler(
+        res,
+        400,
+        false,
+        "Rate range conflicts with existing rates"
+      );
+    }
     const result = await createRecord("driver_rates", vehicleData, []);
 
     if (result.error) {
