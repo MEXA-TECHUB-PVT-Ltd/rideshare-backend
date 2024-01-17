@@ -94,7 +94,7 @@ exports.getAll = async (req, res) => {
       'first_name', u1.first_name,
       'last_name', u1.last_name,
       'email', u1.email,
-      'profile_uri', u1.profile_uri,
+      'profile_uri', u1.profile_uri
     ) as user_details,
     json_build_object(
       'id', u2.id,
@@ -102,7 +102,7 @@ exports.getAll = async (req, res) => {
       'last_name', u2.last_name,
       'email', u2.email,
       'block_status', u2.block_status,
-      'profile_uri', u2.profile_uri,
+      'profile_uri', u2.profile_uri
     ) as rider_details`;
 
   const join = `

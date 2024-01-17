@@ -404,21 +404,9 @@ exports.search = async (
 
 exports.getUserDetails = async (userId) => {
   const query = `
-    SELECT json_build_object(
-      'id', u.id,
-      'email', u.email,
-      'gender', u.gender,
-      'profile_picture', json_build_object(
-        'id', up.id,
-        'file_name', up.file_name,
-        'file_type', up.file_type,
-        'mime_type', up.mime_type
-      )
-    ) as user_details
-    FROM users u
-    LEFT JOIN uploads up ON u.profile_picture = up.id
-    WHERE u.id = $1`;
+    SELECT * FROM users WHERE id = $1`;
 
   const result = await pool.query(query, [userId]);
-  return result.rows[0] ? result.rows[0].user_details : null;
+  console.log(result.rows[0]);
+  return result.rows[0] ? result.rows[0] : null;
 };

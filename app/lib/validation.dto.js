@@ -34,7 +34,7 @@ exports.updateUsersSchema = Joi.object()
 
 exports.updateInsSchema = Joi.object({
   user_id: Joi.number().required(),
-  status: Joi.string().required().valid("contacted"),
+  status: Joi.string().required().valid("contacted", "pending"),
 });
 
 exports.delPreferencesSchema = Joi.object({
@@ -82,8 +82,8 @@ exports.deactivateStatusSchema = Joi.object({
 exports.getAllUsersSchema = Joi.object({
   page: Joi.number().integer().min(1),
   limit: Joi.number().integer().min(1),
-  sortField: Joi.string().valid("id", "name"),
-  sortField: Joi.string().valid("id", "name"),
+  sortField: Joi.string().valid("id", "name", "created_at"),
+  sortOrder: Joi.string().valid("asc", "desc", "created_at"),
   query: Joi.string(),
 });
 

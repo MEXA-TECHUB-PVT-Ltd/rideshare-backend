@@ -723,6 +723,11 @@ exports.getAllUsersWithDetails = async (req, res) => {
           'drop_off_location', r.drop_off_location,
           'ride_date', r.ride_date,
           'ride_status', r.ride_status,
+          'pickup_address', r.pickup_address,
+          'drop_off_address', r.drop_off_address,
+          'price_per_seat', r.price_per_seat,
+          'time_to_pickup', r.time_to_pickup,
+          'current_passenger_count', r.current_passenger_count,
           'caution_details', (
             SELECT json_agg(
               json_build_object(
@@ -768,8 +773,6 @@ exports.getAllUsersWithDetails = async (req, res) => {
 exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
   const fields = `
   users.*,
-
-
     COALESCE(
     (
       SELECT json_agg(
@@ -867,6 +870,11 @@ exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
           'drop_off_location', r.drop_off_location,
           'ride_date', r.ride_date,
           'ride_status', r.ride_status,
+          'pickup_address', r.pickup_address,
+          'drop_off_address', r.drop_off_address,
+          'price_per_seat', r.price_per_seat,
+          'time_to_pickup', r.time_to_pickup,
+          'current_passenger_count', r.current_passenger_count,
           'caution_details', (
             SELECT json_agg(
               json_build_object(
@@ -900,7 +908,11 @@ exports.getAllRecentlyDeletedUsersWithDetails = async (req, res) => {
       WHERE bd.user_id = users.id
     ),
     '[]'::json
-  ) AS bank_details
+  ) AS bank_details,
+  CASE
+    WHEN users.deleted_at IS NOT NULL THEN 90 - DATE_PART('day', CURRENT_DATE - users.deleted_at)
+    ELSE NULL
+  END AS remaining_days_until_complete_deletion
 `;
 
   const additionalFilters = { deleted_at: "IS NOT NULL" };
