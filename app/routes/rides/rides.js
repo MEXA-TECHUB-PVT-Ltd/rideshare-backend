@@ -16,6 +16,10 @@ router.get(
 router.get("/get_ride_joiners/:ride_id", controller.getRideJoiners);
 router.get("/get_all_requested_rides", controller.getAllRequestedRides);
 router.get("/get_all_requested_by_rides/:ride_id", controller.getAllRequestedByRides);
+router.get(
+  "/get_all_requested_by_user/:user_id",
+  controller.getAllRequestedByUser
+);
 router.get("/get_all_publish_by_user/:user_id", controller.getAllPublishByUser);
 router.get("/get_ride_joiners_by_user/:user_id", controller.getAllJoinedByUser);
 
