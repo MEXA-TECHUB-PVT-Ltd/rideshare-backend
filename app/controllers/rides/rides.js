@@ -957,3 +957,100 @@ exports.getAllRequestedByRides = async (req, res) => {
     joinFields
   );
 };
+
+
+exports.getAllRequestedByUser = async (req, res) => {
+  const { user_id } = req.params;
+
+  const join = `
+    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    JOIN rides rd ON rj.ride_id = rd.id
+    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+          LEFT JOIN LATERAL (
+    SELECT json_agg(json_build_object(
+      'id', cautions.id,
+      'name', cautions.name,
+      'icon', cautions.icon
+    )) AS cautions_details
+    FROM unnest(rd.cautions) AS caution_id
+    JOIN cautions ON cautions.id = caution_id
+  ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
+  `;
+
+  const joinFields = `
+        JSON_BUILD_OBJECT(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'gender', u.gender,
+      'profile_uri', u.profile_uri
+    ) AS user_info,
+    JSON_BUILD_OBJECT(
+    'id', rd.id,
+    'user_id', rd.user_id,
+    'pickup_location', rd.pickup_location,
+    'pickup_address', rd.pickup_address,
+    'drop_off_location', rd.drop_off_location,
+    'drop_off_address', rd.drop_off_address,
+    'tolls', rd.tolls,
+    'route_time', rd.route_time,
+    'city_of_route', rd.city_of_route,
+    'route_miles', rd.route_miles,
+    'ride_date', rd.ride_date,
+    'time_to_pickup', rd.time_to_pickup,
+    'max_passengers', rd.max_passengers,
+    'request_option', rd.request_option,
+    'price_per_seat', rd.price_per_seat,
+    'return_ride_status', rd.return_ride_status,
+    'return_ride_id', rd.return_ride_id,
+    'ride_status', rd.ride_status,
+    'vehicles_details_id', rd.vehicles_details_id,
+    'current_passenger_count', rd.current_passenger_count,
+    'wait_time', rd.wait_time,
+    'wait_time_cost', rd.wait_time_cost,
+    'canceled_reason', rd.canceled_reason,
+    'canceled_ride_cost', rd.canceled_ride_cost,
+    'ride_duration', rd.ride_duration,
+    'ride_end_time', rd.ride_end_time
+    ) AS ride_details,
+    JSON_BUILD_OBJECT(
+      'license_plate_no', vd.license_plate_no,
+      'vehicle_brand', vd.vehicle_brand,
+      'vehicle_model', vd.vehicle_model,
+      'registration_no', vd.registration_no,
+      'driving_license_no', vd.driving_license_no,
+      'license_expiry_date', vd.license_expiry_date,
+      'personal_insurance', vd.personal_insurance,
+      'vehicle_type', JSON_BUILD_OBJECT(
+        'name', vt.name,
+        'id', vt.id 
+      ),
+      'vehicle_color', JSON_BUILD_OBJECT(
+        'name', vc.name,
+        'code', vc.code,
+        'id', vc.id
+      )
+    ) AS vehicle_info,
+  cautions_agg.cautions_details
+
+  `;
+
+  const additionalFilters = {
+    "rj.status": "pending",
+    "rj.user_id": user_id,
+  };
+
+  getAll(
+    req,
+    res,
+    "ride_joiners rj",
+    "rj.created_at",
+    "rj.*",
+    additionalFilters,
+    join,
+    joinFields
+  );
+};
