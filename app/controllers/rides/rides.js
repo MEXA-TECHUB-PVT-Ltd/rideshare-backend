@@ -209,7 +209,10 @@ SELECT
       'name', vehicle_colors.name,
       'code', vehicle_colors.code
     )
-  ) AS vehicle_info
+  ) AS vehicle_info,
+  JSON_BUILD_OBJECT(
+    'user', users.*
+  ) AS user_info
 FROM 
   rides
 JOIN 
@@ -219,7 +222,10 @@ JOIN
 JOIN 
   vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
 JOIN 
-  users ON rides.user_id = users.id AND users.deleted_at IS NULL;
+  users ON rides.user_id = users.id
+WHERE 
+  users.deleted_at IS NULL;
+
 
 `;
     const allRidesResult = await pool.query(allRidesQuery);
@@ -293,7 +299,7 @@ JOIN
 };
 
 exports.get = async (req, res) => {
-const join = `
+  const join = `
   JOIN vehicles_details ON rides.vehicles_details_id = vehicles_details.id
   JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
   JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
@@ -491,8 +497,7 @@ exports.updateStatus = async (req, res) => {
 exports.getRideJoiners = async (req, res) => {
   const ride_id = parseInt(req.params.ride_id, 10);
 
-
-const join = `
+  const join = `
   JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
   JOIN rides rd ON rj.ride_id = rd.id
   JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
@@ -508,7 +513,6 @@ const join = `
     JOIN cautions ON cautions.id = caution_id
   ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
 `;
-
 
   const joinFields = `
     rj.*,
@@ -660,6 +664,12 @@ LEFT JOIN LATERAL (
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
+      'phone', u.phone,
+      'about', u.about,
+      'post_address', u.post_address,
+      'payment_status', u.payment_status,
+      'deactivated', u.deactivated,
+      'block_status', u.block_status,
       'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
@@ -957,7 +967,6 @@ exports.getAllRequestedByRides = async (req, res) => {
     joinFields
   );
 };
-
 
 exports.getAllRequestedByUser = async (req, res) => {
   const { user_id } = req.params;
