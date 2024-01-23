@@ -20,6 +20,18 @@
     <button id="wait">Wait and get $ 0.28 per minute</button>
     <hr />
     <button id="cancel">Cancel the ride and get $ 6.25</button>
+    <hr />
+    <hr />
+    <hr />
+    <button id="late-joiner">Late joiner</button>
+    <hr />
+    <hr />
+    <hr />
+    <button id="drop-off">Drop off joiner</button>
+    <hr />
+    <hr />
+    <hr />
+    <button id="cancel-ride-by-joiner">Cancel ride by ride joiner</button>
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
@@ -77,6 +89,28 @@
           }
         });
 
+        // late joiners
+        socket.on("lateJoiners", (data) => {
+          if (data) {
+            console.log("lateJoiners:", data);
+          }
+        });
+
+        // drop off joiners
+        socket.on("dropOff", (data) => {
+          if (data) {
+            console.log("dropOff:", data);
+          }
+        });
+
+
+        // cancel Ride By Joiner
+        socket.on("cancelRideByJoiner", (data) => {
+          if (data) {
+            console.log("cancelRideByJoiner:", data);
+          }
+        });
+
         // Start Ride button
         document
           .getElementById("startRideButton")
@@ -103,7 +137,11 @@
         document
           .getElementById("completeRideButton")
           .addEventListener("click", () => {
-            socket.emit("rideCompleted", { ride_id: 1, ride_duration: "30 minutes", ride_end_time: new Date().toISOString() });
+            socket.emit("rideCompleted", {
+              ride_id: 1,
+              ride_duration: "30 minutes",
+              ride_end_time: new Date().toISOString(),
+            });
             console.log("Complete Ride event emitted");
           });
 
@@ -150,6 +188,39 @@
 
           socket.emit("cancel", cancelData);
           console.log("Cancel Ride event emitted");
+        });
+
+        // late joiner button
+        document.getElementById("late-joiner").addEventListener("click", () => {
+          const lateJoinersData = {
+            ride_id: 53,
+            ride_joiner_ids: [34, 33],
+            cost: 30.0,
+          };
+
+          socket.emit("lateJoiners", lateJoinersData);
+          console.log("lateJoiners");
+        });
+
+
+        // drop off joiner button
+        document.getElementById("drop-off").addEventListener("click", () => {
+          const lateJoinersData = {
+            ride_joiner_id: 34
+          };
+
+          socket.emit("dropOff", lateJoinersData);
+          console.log("dropOff");
+        });
+
+        // cancelRideByJoiner joiner button
+        document.getElementById("cancel-ride-by-joiner").addEventListener("click", () => {
+          const lateJoinersData = {
+            ride_joiner_id: 34
+          };
+
+          socket.emit("cancelRideByJoiner", lateJoinersData);
+          console.log("cancelRideByJoiner");
         });
       });
     </script>

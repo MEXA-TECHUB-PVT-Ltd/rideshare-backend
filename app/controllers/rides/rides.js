@@ -214,7 +214,7 @@ SELECT
     'user', users.*
   ) AS user_info
 FROM 
-  rides
+  rides 
 JOIN 
   vehicles_details ON rides.vehicles_details_id = vehicles_details.id
 JOIN 
@@ -224,9 +224,7 @@ JOIN
 JOIN 
   users ON rides.user_id = users.id
 WHERE 
-  users.deleted_at IS NULL;
-
-
+  users.deleted_at IS NULL AND (rides.ride_status IS DISTINCT FROM 'canceled' OR rides.ride_status IS NULL);
 `;
     const allRidesResult = await pool.query(allRidesQuery);
     const allRides = allRidesResult.rows;
