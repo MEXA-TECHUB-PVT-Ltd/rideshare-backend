@@ -79,10 +79,9 @@ function setupRideEvents() {
           value: ride_id,
         });
 
-        
         // Emitting an event after successful update
         io.emit("rideCompleted", { result: updateResult });
-        
+
         const socketId = rideSocketMap.get(ride_id);
         if (socketId && io.sockets.sockets.get(socketId)) {
           io.sockets.sockets.get(socketId).disconnect();
@@ -255,6 +254,84 @@ function setupRideEvents() {
           rideSocketMap.delete(rideId);
           console.log(`Ride ${rideId} disassociated from socket ${socketId}`);
         }
+      }
+    });
+
+    // late joiners
+    socket.on("lateJoiners", async (data) => {
+      try {
+        const { ride_id, ride_joiner_ids, cost } = data;
+        let joinerRecords = []; // Array to hold records for each joiner
+
+        for (const joiner_id of ride_joiner_ids) {
+          const lateJoinerData = {
+            ride_id,
+            ride_joiner_id: joiner_id,
+            cost,
+          };
+          const joinerRecordCreated = await createRecord(
+            "late_ride_joiners",
+            lateJoinerData
+          );
+
+          // Add the created record to the array
+          joinerRecords.push(joinerRecordCreated);
+        }
+
+        // Emitting an event after successfully processing all joiners
+        console.log(joinerRecords);
+        io.emit("lateJoiners", { results: joinerRecords });
+      } catch (error) {
+        console.error(error);
+        // Handle error (e.g., emit an error event to client)
+      }
+    });
+    socket.on("dropOff", async (data) => {
+      try {
+        const { ride_joiner_id } = data;
+        const riderJoinerData = {
+          drop_status: true,
+        };
+        const updateResult = await updateRecord(
+          "ride_joiners",
+          riderJoinerData,
+          [],
+          {
+            column: "id",
+            value: ride_joiner_id,
+          }
+        );
+
+        // Emitting an event after successful update
+        io.emit("dropOff", { result: updateResult });
+      } catch (error) {
+        console.error(error);
+        // Handle error (e.g., emit an error event to client)
+      }
+    });
+
+    // cancel the ride by a ride joiner
+    socket.on("cancelRideByJoiner", async (data) => {
+      try {
+        const { ride_joiner_id } = data;
+        const riderJoinerData = {
+          status: 'canceled',
+        };
+        const updateResult = await updateRecord(
+          "ride_joiners",
+          riderJoinerData,
+          [],
+          {
+            column: "id",
+            value: ride_joiner_id,
+          }
+        );
+
+        // Emitting an event after successful update
+        io.emit("cancelRideByJoiner", { result: updateResult });
+      } catch (error) {
+        console.error(error);
+        // Handle error (e.g., emit an error event to client)
       }
     });
   });
