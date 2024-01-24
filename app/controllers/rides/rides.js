@@ -671,17 +671,7 @@ LEFT JOIN LATERAL (
       'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
-      'id', rd.id,
-      'pickup_address', rd.pickup_address,
-      'drop_off_address', rd.drop_off_address,
-      'ride_date', rd.ride_date,
-      'tolls', rd.tolls,
-      'route_miles', rd.route_miles,
-      'max_passengers', rd.max_passengers,
-      'price_per_seat', rd.price_per_seat,
-      'return_ride_status', rd.return_ride_status,
-      'current_passenger_count', rd.current_passenger_count,
-      'cautions', rd.cautions
+      'rides', rd*
     ) AS ride_details,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
