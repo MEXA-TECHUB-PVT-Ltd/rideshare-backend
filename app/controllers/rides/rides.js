@@ -671,7 +671,7 @@ LEFT JOIN LATERAL (
       'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(
-      'rides', rd*
+      'rides', rd.*
     ) AS ride_details,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
