@@ -691,7 +691,7 @@ LEFT JOIN LATERAL (
         'id', vc.id
       )
     ) AS vehicle_info,
-  cautions_agg.cautions_details
+  cautions_agg.cautions_details 
 
   `;
 
