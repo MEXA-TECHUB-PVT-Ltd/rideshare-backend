@@ -12,7 +12,7 @@ const { setupSocket } = require("./app/config/socketSetup");
 const setupRideEvents = require("./app/utils/rideEvents");
 
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); 
 
 app.set("view engine", "ejs");
 
