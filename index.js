@@ -12,11 +12,11 @@ const { setupSocket } = require("./app/config/socketSetup");
 const setupRideEvents = require("./app/utils/rideEvents");
 
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); 
 
 app.set("view engine", "ejs");
 
-const PORT = 3010;
+const PORT = process.env.PORT || 3025;
 
 app.use(cors());
 app.use(express.json());
