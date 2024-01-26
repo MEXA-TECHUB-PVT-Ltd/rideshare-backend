@@ -30,7 +30,7 @@ exports.create = async (req, res) => {
       try {
         const deleteResult = await pool.query(deleteQuery, [userId]);
         console.log(
-          `Deleted ${deleteResult.rowCount} ${prefType} preferences for user ${userId}`
+          `Deleted ${deleteResult.rowCount} ${prefType} preferences for user ${userId}` 
         );
       } catch (error) {
         console.error(
