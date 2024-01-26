@@ -17,7 +17,7 @@ router.get(
   controller.getSpecificPreferenceByUser
 );
 router.delete(
-  "/deleteUserPreference/:pre_type/:pre_id/:user_id",
+  "/deleteUserPreference",
   controller.deleteUserPreference
 );
 // router.get("/get/:id", controller.get);

@@ -8,112 +8,120 @@ const {
 exports.create = async (req, res) => {
   const {
     user_id,
-    chattiness_preference_id,
-    music_preference_id,
-    pets_preference_id,
-    smoking_preference_id,
+    chattiness_preference_id = [],
+    music_preference_id = [],
+    pets_preference_id = [],
+    smoking_preference_id = [],
   } = req.body;
 
-  try {
-    const user = await checkUserExists("users", "id", user_id, [
-      { column: "deleted_at", value: "IS NULL" },
-    ]);
-    if (user.rowCount === 0) {
-      return responseHandler(res, 404, false, "User not found or deactivated");
+  // Function to handle inserting or updating preferences
+  const handlePreferences = async (
+    userId,
+    preferenceIds,
+    userPrefTable,
+    prefType
+  ) => {
+    const handledPreferences = [];
+
+    if (preferenceIds.length > 0) {
+      console.log(preferenceIds);
+      // Delete all existing preferences of this type for the user
+      const deleteQuery = `DELETE FROM ${userPrefTable} WHERE user_id = $1`;
+      try {
+        const deleteResult = await pool.query(deleteQuery, [userId]);
+        console.log(
+          `Deleted ${deleteResult.rowCount} ${prefType} preferences for user ${userId}`
+        );
+      } catch (error) {
+        console.error(
+          `Error deleting ${prefType} preferences for user ${userId}:`,
+          error
+        );
+        throw error; // Rethrow to handle in the calling function
+      }
     }
 
-    await pool.query("BEGIN"); // Start transaction
-
-    // Function to insert a single type of preferences
-    const insertPreferences = async (
-      userId,
-      preferenceIds,
-      userPrefTable,
-      prefType
-    ) => {
-      const insertedPreferences = [];
+    // Check if an empty array is received; if so, delete all preferences of this type
+    if (preferenceIds.length === 0) {
+      const deleteAllQuery = `DELETE FROM ${userPrefTable} WHERE user_id = $1`;
+      await pool.query(deleteAllQuery, [userId]);
+      console.log(`Deleted all ${prefType} preferences for user ${userId}`);
+    } else {
+      // If preferences are provided, first delete existing preferences and then insert new ones
+      const deleteQuery = `DELETE FROM ${userPrefTable} WHERE user_id = $1`;
+      await pool.query(deleteQuery, [userId]);
+      console.log(
+        `Deleted existing ${prefType} preferences for user ${userId}`
+      );
 
       for (const preferenceId of preferenceIds) {
         if (!preferenceId) continue;
 
-        const exists = await checkPreferenceExists(
-          "preferences",
-          "id",
-          preferenceId,
-          prefType
-        );
-        if (!exists) {
-          await pool.query("ROLLBACK");
-          return {
-            error: `Preference ID ${preferenceId} of type '${prefType}' not found`,
-          };
-        }
-
+        // Insert the new preference
         const insertQuery = `
-      INSERT INTO ${userPrefTable} (user_id, ${prefType}_preference_id) 
-      VALUES ($1, $2) 
-      RETURNING *`;
+        INSERT INTO ${userPrefTable} (user_id, ${prefType}_preference_id) 
+        VALUES ($1, $2) 
+        RETURNING *`;
         const insertedPrefResult = await pool.query(insertQuery, [
           userId,
           preferenceId,
         ]);
 
-        // Fetching complete details with JOIN
+        // Fetch complete details with JOIN
         const completeDetailsQuery = `
-      SELECT up.*, p.type, p.icon, p.prompt 
-      FROM ${userPrefTable} up 
-      JOIN preferences p ON up.${prefType}_preference_id = p.id 
-      WHERE up.id = $1`;
+        SELECT up.*, p.type, p.icon, p.prompt 
+        FROM ${userPrefTable} up 
+        JOIN preferences p ON up.${prefType}_preference_id = p.id 
+        WHERE up.id = $1`;
         const completeDetailsResult = await pool.query(completeDetailsQuery, [
           insertedPrefResult.rows[0].id,
         ]);
 
-        insertedPreferences.push(completeDetailsResult.rows[0]); // Store inserted preference details with additional info
+        handledPreferences.push(completeDetailsResult.rows[0]); // Store handled preference details
       }
-      return { data: insertedPreferences }; // Return inserted preference details with additional info
-    };
+    }
 
+    return { data: handledPreferences }; // Return handled preference details
+  };
+
+  try {
+    // Start transaction
+    await pool.query("BEGIN");
+
+    // Handle each type of preference
     const preferenceResults = [];
-    if (chattiness_preference_id) {
-      preferenceResults.push(
-        await insertPreferences(
-          user_id,
-          chattiness_preference_id,
-          "user_chattiness_preferences",
-          "chattiness"
-        )
-      );
-    }
-    if (music_preference_id) {
-      preferenceResults.push(
-        await insertPreferences(
-          user_id,
-          music_preference_id,
-          "user_music_preferences",
-          "music"
-        )
-      );
-    }
-    if (pets_preference_id) {
-      preferenceResults.push(
-        await insertPreferences(
-          user_id,
-          pets_preference_id,
-          "user_pets_preferences",
-          "pets"
-        )
-      );
-    }
-    if (smoking_preference_id) {
-      preferenceResults.push(
-        await insertPreferences(
-          user_id,
-          smoking_preference_id,
-          "user_smoking_preferences",
-          "smoking"
-        )
-      );
-    }
+    preferenceResults.push(
+      await handlePreferences(
+        user_id,
+        chattiness_preference_id,
+        "user_chattiness_preferences",
+        "chattiness"
+      )
+    );
+    preferenceResults.push(
+      await handlePreferences(
+        user_id,
+        music_preference_id,
+        "user_music_preferences",
+        "music"
+      )
+    );
+    preferenceResults.push(
+      await handlePreferences(
+        user_id,
+        pets_preference_id,
+        "user_pets_preferences",
+        "pets"
+      )
+    );
+    preferenceResults.push(
+      await handlePreferences(
+        user_id,
+        smoking_preference_id,
+        "user_smoking_preferences",
+        "smoking"
+      )
+    );
 
     // Check for errors in preferenceResults
     const errors = preferenceResults.filter((result) => result.error);
@@ -130,7 +138,8 @@ exports.create = async (req, res) => {
     // Extract inserted data
     const insertedData = preferenceResults.map((result) => result.data).flat();
 
-    await pool.query("COMMIT"); // Commit transaction
+    // Commit transaction
+    await pool.query("COMMIT");
     return responseHandler(
       res,
       201,
@@ -139,7 +148,8 @@ exports.create = async (req, res) => {
       insertedData
     );
   } catch (error) {
-    await pool.query("ROLLBACK"); // Rollback transaction in case of error
+    // Rollback transaction in case of error
+    await pool.query("ROLLBACK");
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
@@ -309,17 +319,60 @@ exports.update = async (req, res) => {
 // };
 
 exports.getAllUser = async (req, res) => {
-  const userId = req.params.user_id; // Ensure you have a route parameter for userId
+  const userId = req.params.user_id;
 
   try {
     const query = `
-      SELECT 
-        json_build_object(
-          'chattiness', (SELECT json_agg(row_to_json(t)) FROM (SELECT id, chattiness_preference_id, created_at, updated_at FROM user_chattiness_preferences WHERE user_id = $1) t),
-          'music', (SELECT json_agg(row_to_json(t)) FROM (SELECT id, music_preference_id, created_at, updated_at FROM user_music_preferences WHERE user_id = $1) t),
-          'smoking', (SELECT json_agg(row_to_json(t)) FROM (SELECT id, smoking_preference_id, created_at, updated_at FROM user_smoking_preferences WHERE user_id = $1) t),
-          'pets', (SELECT json_agg(row_to_json(t)) FROM (SELECT id, pets_preference_id, created_at, updated_at FROM user_pets_preferences WHERE user_id = $1) t)
-        ) AS user_preferences
+SELECT 
+  json_build_object(
+    'chattiness', (SELECT json_agg(
+                    json_build_object(
+                      'type', 'chattiness', 
+                      'data', row_to_json(p), 
+                      'user_preference_id', ucp.id, 
+                      'isSelected', CASE WHEN ucp.id IS NOT NULL THEN true ELSE false END
+                    )
+                  )
+                  FROM preferences p
+                  LEFT JOIN user_chattiness_preferences ucp ON p.id = ucp.chattiness_preference_id AND ucp.user_id = $1
+                  WHERE p.type = 'chattiness'),
+    'music', (SELECT json_agg(
+                json_build_object(
+                  'type', 'music', 
+                  'data', row_to_json(p), 
+                  'user_preference_id', ump.id, 
+                  'isSelected', CASE WHEN ump.id IS NOT NULL THEN true ELSE false END
+                )
+              )
+              FROM preferences p
+              LEFT JOIN user_music_preferences ump ON p.id = ump.music_preference_id AND ump.user_id = $1
+              WHERE p.type = 'music'),
+    'smoking', (SELECT json_agg(
+                  json_build_object(
+                    'type', 'smoking', 
+                    'data', row_to_json(p), 
+                    'user_preference_id', usp.id, 
+                    'isSelected', CASE WHEN usp.id IS NOT NULL THEN true ELSE false END
+                  )
+                )
+                FROM preferences p
+                LEFT JOIN user_smoking_preferences usp ON p.id = usp.smoking_preference_id AND usp.user_id = $1
+                WHERE p.type = 'smoking'),
+    'pets', (SELECT json_agg(
+              json_build_object(
+                'type', 'pets', 
+                'data', row_to_json(p), 
+                'user_preference_id', upp.id, 
+                'isSelected', CASE WHEN upp.id IS NOT NULL THEN true ELSE false END
+              )
+            )
+            FROM preferences p
+            LEFT JOIN user_pets_preferences upp ON p.id = upp.pets_preference_id AND upp.user_id = $1
+            WHERE p.type = 'pets')
+  ) AS user_preferences
+FROM users
+WHERE id = $1;
+
     `;
 
     const result = await pool.query(query, [userId]);
@@ -568,11 +621,22 @@ exports.getAllByUser = async (req, res) => {
   }
 };
 
-
 exports.deleteUserPreference = async (req, res) => {
-  const userId = req.params.user_id;
-  const prefType = req.params.pre_type;
-  const recordId = req.params.pre_id;
+  const { userId, recordIds, prefType } = req.body;
+
+  if (
+    !userId ||
+    !prefType ||
+    !Array.isArray(recordIds) ||
+    recordIds.length === 0
+  ) {
+    return responseHandler(
+      res,
+      400,
+      false,
+      "userId, prefType, recordIds required"
+    );
+  }
 
   try {
     let tableName;
@@ -595,17 +659,17 @@ exports.deleteUserPreference = async (req, res) => {
 
     const deleteQuery = `
       DELETE FROM ${tableName}
-      WHERE id = $1 AND user_id = $2
+      WHERE id = ANY($1::int[]) AND user_id = $2
       RETURNING *;`;
 
-    const result = await pool.query(deleteQuery, [recordId, userId]);
+    const result = await pool.query(deleteQuery, [recordIds, userId]);
 
     if (result.rowCount === 0) {
       return responseHandler(
         res,
         404,
         false,
-        "No preference found with the specified ID for the user, or unable to delete"
+        "No preferences found with the specified IDs for the user, or unable to delete"
       );
     }
 
@@ -613,8 +677,8 @@ exports.deleteUserPreference = async (req, res) => {
       res,
       200,
       true,
-      `User preference of type ${prefType} deleted successfully`,
-      result.rows[0]
+      `User preferences of type ${prefType} deleted successfully`,
+      result.rows
     );
   } catch (error) {
     console.error(error);

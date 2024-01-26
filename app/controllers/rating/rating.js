@@ -40,38 +40,94 @@ exports.getAllRatingsGivenByUser = async (req, res) => {
 
   const additionalFilters = { user_id };
 
-  getAll(req, res, "rating", "created_at", "*", additionalFilters);
+  const fields = `
+    r.*,
+    json_build_object(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'profile_uri', u.profile_uri
+    ) as user_details`;
+
+  // JOIN clause to get user details
+  const join = `
+    LEFT JOIN users u ON r.user_id = u.id`;
+
+  getAll(
+    req,
+    res,
+    "rating r", // Alias 'rating' as 'r'
+    "r.created_at", // Default sort field
+    fields,
+    additionalFilters, // Filters by ride_id
+    join
+  );
 };
 
 exports.getAllRatingsByRide = async (req, res) => {
   const { ride_id } = req.params;
 
-  const additionalFilters = { ride_id };
+  // Fields to select in the query
+  const fields = `
+    r.*,
+    json_build_object(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'profile_uri', u.profile_uri
+    ) as user_details`;
 
-  getAll(req, res, "rating", "created_at", "*", additionalFilters);
+  // JOIN clause to get user details
+  const join = `
+    LEFT JOIN users u ON r.user_id = u.id`;
+
+  // Filters to apply
+  const additionalFilters = { "r.ride_id": ride_id };
+
+  // Call the generic getAll function with the specified parameters
+  getAll(
+    req,
+    res,
+    "rating r", // Alias 'rating' as 'r'
+    "r.created_at", // Default sort field
+    fields,
+    additionalFilters, // Filters by ride_id
+    join
+  );
 };
+
 
 
 exports.getAllRatingsOfUser = async (req, res) => {
   const { user_id } = req.params; // Assuming user_id is passed as a URL parameter
 
-  // Set up the parameters for the getAll function
-  const tableName = "rating";
-  const join = "JOIN rides ON rating.ride_id = rides.id";
-  const joinFields = "rides.user_id AS receiver_id";
-  const additionalFilters = { "rides.user_id": user_id };
-  const defaultSortField = "rating.id"; // Specify 'rating.id' to avoid ambiguity
+  // Fields to select in the query
+  const fields = `
+    r.*,
+    json_build_object(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'profile_uri', u.profile_uri
+    ) as user_details`;
+
+  // JOIN clause to get user details
+  const join = `
+    LEFT JOIN users u ON r.user_id = u.id
+    LEFT JOIN rides ON r.ride_id = rides.id`;
 
   // Call the generic getAll function
-  getAll(
+  return getAll(
     req,
     res,
-    tableName,
-    defaultSortField,
-    "*",
-    additionalFilters,
-    join,
-    joinFields
+    "rating r", // Alias 'rating' as 'r'
+    "r.created_at", // Default sort field
+    fields,
+    {}, // No additional filters
+    join
   );
 };
 

@@ -69,17 +69,15 @@ SELECT
   u.last_name AS user_last_name, 
   u.email AS user_email, 
   u.gender AS user_gender, 
-  uu.file_name AS user_profile_picture,
+  u.profile_uri AS user_profile_picture,
   r.first_name AS rider_first_name, 
   r.last_name AS rider_last_name, 
   r.email AS rider_email, 
   r.gender AS rider_gender, 
-  ru.file_name AS rider_profile_picture
+  r.profile_uri AS rider_profile_picture
 FROM fav_riders fr
 JOIN users u ON fr.user_id = u.id
-LEFT JOIN uploads uu ON u.profile_picture = uu.id
 JOIN users r ON fr.rider_id = r.id
-LEFT JOIN uploads ru ON r.profile_picture = ru.id
 WHERE fr.id = $1;
     `;
     const joinData = await pool.query(fetchQuery, [favId]);
@@ -102,8 +100,8 @@ exports.getAllFavoriteRiders = async (req, res) => {
   const additionalFilters = { "fr.user_id": user_id };
 
   // Specify the JOIN clause to fetch details from the users table
-  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id`;
-  const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture`;
+  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL`;
+  const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, u.profile_uri AS rider_profile_picture`;
 
   // Call the getAll function
   getAll(
@@ -119,8 +117,8 @@ exports.getAllFavoriteRiders = async (req, res) => {
 };
 
 exports.getAll = async (req, res) => {
-  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id`;
-  const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture`;
+  const join = `JOIN users u ON fr.rider_id = u.id AND deleted_at IS NULL`;
+  const joinFields = `u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, u.profile_uri AS rider_profile_picture`;
   return getAll(
     req,
     res,
@@ -134,11 +132,11 @@ exports.getAll = async (req, res) => {
 };
 exports.get = async (req, res) => {
   const join = `
-    JOIN users u ON fav_riders.user_id = u.id AND deleted_at IS NULL LEFT JOIN uploads up ON u.profile_picture = up.id
+    JOIN users u ON fav_riders.user_id = u.id AND deleted_at IS NULL
   `;
 
   const joinFields = `
-    u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, up.file_name AS rider_profile_picture
+    u.first_name AS rider_first_name, u.last_name AS rider_last_name, u.email AS rider_email, u.gender AS rider_gender, u.profile_uri AS rider_profile_picture
   `;
   return getSingle(
     req,
