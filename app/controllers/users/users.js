@@ -100,6 +100,11 @@ exports.create = async (req, res) => {
         verificationEmailTemplatePath,
         verificationData
       );
+      try {
+        
+      } catch (error) {
+        
+      }
       const emailSent = await sendEmail(
         email,
         "Verify Your Email",
@@ -115,7 +120,8 @@ exports.create = async (req, res) => {
           newUser
         );
       } else {
-        responseHandler(res, 500, false, emailSent.message);
+        console.log("email hasn't been sent successfully")
+        // responseHandler(res, 500, false, emailSent.message);
       }
     } catch (sendEmailError) {
       console.error(sendEmailError);
