@@ -110,7 +110,7 @@ exports.create = async (req, res) => {
         "Verify Your Email",
         verificationHtmlContent
       );
-
+ 
       if (emailSent.success) {
         responseHandler(
           res,

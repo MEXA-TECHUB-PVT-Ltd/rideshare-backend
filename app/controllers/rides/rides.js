@@ -91,7 +91,7 @@ exports.publishRides = async (req, res) => {
     try {
       notifyUsersForNewRide(rideData);
     } catch (error) {
-      console.error(error);
+      console.error("Error jsdhfjshdjfhsjdhfjsdhf",error);
     }
     const createResult = await createRecord("rides", rideData, []);
 
@@ -150,16 +150,17 @@ WHERE rd.id = $1;
       if (!emailSent.success) {
         console.error(emailSent.message);
         // Consider whether you want to return here or just log the error
-        return responseHandler(res, 500, false, emailSent.message);
+        
+        // return responseHandler(res, 500, false, emailSent.message);
       }
     } catch (sendEmailError) {
       console.error(sendEmailError);
-      return responseHandler(
-        res,
-        500,
-        false,
-        "Error sending verification email"
-      );
+      // return responseHandler(
+      //   res,
+      //   500,
+      //   false,
+      //   "Error sending verification email"
+      // );
     }
 
     if (rideDetailsResult.rowCount === 0) {
@@ -179,7 +180,7 @@ WHERE rd.id = $1;
       rideDetailsResult.rows[0]
     );
   } catch (error) {
-    console.error(error);
+    console.error("Internal Server Error ",error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };

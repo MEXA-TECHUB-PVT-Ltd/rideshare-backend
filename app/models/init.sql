@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS rides(
   canceled_reason VARCHAR(255),
   canceled_ride_cost DECIMAL(10, 2) DEFAULT 0.00,
   ride_duration INTERVAL,
-  ride_end_time TIMESTAMP WITH TIME ZONE,
+  ride_end_time VARCHAR(255),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

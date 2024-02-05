@@ -41,6 +41,12 @@
           console.log("Connected to WebSocket server");
         });
 
+        socket.on("startRide", async (data) => {
+          if (data) {
+            console.log("startRide with ID:", data.result);
+          }
+        });
+        
         socket.on("rideStarted", async (data) => {
           if (data) {
             console.log("Ride started with ID:", data.result);
@@ -115,7 +121,7 @@
         document
           .getElementById("startRideButton")
           .addEventListener("click", () => {
-            socket.emit("startRide", { ride_id: 1 });
+            socket.emit("startRide", { ride_id: 68 });
             console.log("Start Ride event emitted");
           });
 
@@ -123,13 +129,13 @@
         document
           .getElementById("pickupLocationButton")
           .addEventListener("click", () => {
-            socket.emit("pickupLocationReached", { ride_id: 1 });
+            socket.emit("pickupLocationReached", { ride_id: 68 });
             console.log("Pickup Location event emitted");
           });
 
         // On Going Location button
         document.getElementById("ongoing").addEventListener("click", () => {
-          socket.emit("ongoing", { ride_id: 1 });
+          socket.emit("ongoing", { ride_id: 68 });
           console.log("On going event emitted");
         });
 
@@ -138,7 +144,7 @@
           .getElementById("completeRideButton")
           .addEventListener("click", () => {
             socket.emit("rideCompleted", {
-              ride_id: 1,
+              ride_id: 68,
               ride_duration: "30 minutes",
               ride_end_time: new Date().toISOString(),
             });
@@ -148,7 +154,7 @@
         // break Ride button
         document.getElementById("break").addEventListener("click", () => {
           const breakData = {
-            ride_id: 1, // Assuming you have a way to get the current ride's ID
+            ride_id: 68, // Assuming you have a way to get the current ride's ID
             break_start: new Date().toISOString(), // ISO string of the break start time
             duration: "30 minutes", // The duration of the break
           };
@@ -159,7 +165,7 @@
         // continue Ride button
         document.getElementById("continue").addEventListener("click", () => {
           const breakData = {
-            ride_id: 1,
+            ride_id: 68,
             break_id: 4,
             break_end: new Date().toISOString(),
           };
@@ -170,7 +176,7 @@
         // wait Ride button
         document.getElementById("wait").addEventListener("click", () => {
           const breakData = {
-            ride_id: 1,
+            ride_id: 68,
             wait_time: 30,
             wait_time_cost: 30.0,
           };
@@ -181,7 +187,7 @@
         // cancel Ride button
         document.getElementById("cancel").addEventListener("click", () => {
           const cancelData = {
-            ride_id: 1,
+            ride_id: 68,
             canceled_reason: "Some amount of reason",
             canceled_ride_cost: 30.0,
           };
@@ -193,7 +199,7 @@
         // late joiner button
         document.getElementById("late-joiner").addEventListener("click", () => {
           const lateJoinersData = {
-            ride_id: 53,
+            ride_id: 68,
             ride_joiner_ids: [34, 33],
             cost: 30.0,
           };
