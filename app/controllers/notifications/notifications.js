@@ -63,15 +63,13 @@ SELECT
   t.name AS notification_type_name,
   u.id AS sender_id,
   u.first_name AS sender_first_name,
-  su.file_name AS sender_upload_file_name,
+  u.profile_uri AS profile_uri,
   r.id AS receiver_id,
   r.first_name AS receiver_first_name,
-  ru.file_name AS receiver_upload_file_name
+  r.profile_uri AS receiver_upload_profile_uri
 FROM notification n
 JOIN users u ON n.sender_id = u.id
-LEFT JOIN uploads su ON u.profile_picture = su.id
 JOIN users r ON n.receiver_id = r.id
-LEFT JOIN uploads ru ON r.profile_picture = ru.id
 JOIN notification_types t ON n.type = t.id
 WHERE n.id = $1
   AND u.deleted_at IS NULL  -- Exclude notifications from deleted sender
@@ -214,6 +212,7 @@ exports.getAllNotificationsByUser = async (req, res) => {
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
+        t.id AS notification_type_id,
         u.id AS sender_id,
         u.first_name AS sender_first_name,
         r.id AS receiver_id,
@@ -282,6 +281,7 @@ exports.getAllReadNotificationsByUser = async (req, res) => {
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
+        t.id AS notification_type_id,
         u.id AS sender_id,
         u.first_name AS sender_first_name,
         r.id AS receiver_id,
@@ -349,6 +349,7 @@ exports.getAllUnReadNotificationsByUser = async (req, res) => {
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
+        t.id AS notification_type_id,
         u.id AS sender_id,
         u.first_name AS sender_first_name,
         r.id AS receiver_id,
