@@ -1038,7 +1038,7 @@ exports.getAllRequestedByUser = async (req, res) => {
 
   const additionalFilters = {
     "rj.status": "pending",
-    "rj.user_id": user_id,
+    "rd.user_id": user_id,
   };
 
   getAll(
