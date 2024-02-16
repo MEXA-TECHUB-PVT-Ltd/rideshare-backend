@@ -755,8 +755,8 @@ exports.getAllRideByStatus = async (req, res) => {
   ) cautions_agg ON r.cautions IS NOT NULL AND array_length(r.cautions, 1) > 0
   `;
 
+ 
 
-  
   const joinFields = `
     JSON_BUILD_OBJECT(
       'id', u.id,
