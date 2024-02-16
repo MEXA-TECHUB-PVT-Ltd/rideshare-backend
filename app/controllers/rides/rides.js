@@ -91,7 +91,7 @@ exports.publishRides = async (req, res) => {
     try {
       notifyUsersForNewRide(rideData);
     } catch (error) {
-      console.error("Error jsdhfjshdjfhsjdhfjsdhf",error);
+      console.error("Error jsdhfjshdjfhsjdhfjsdhf", error);
     }
     const createResult = await createRecord("rides", rideData, []);
 
@@ -150,7 +150,7 @@ WHERE rd.id = $1;
       if (!emailSent.success) {
         console.error(emailSent.message);
         // Consider whether you want to return here or just log the error
-        
+
         // return responseHandler(res, 500, false, emailSent.message);
       }
     } catch (sendEmailError) {
@@ -180,7 +180,7 @@ WHERE rd.id = $1;
       rideDetailsResult.rows[0]
     );
   } catch (error) {
-    console.error("Internal Server Error ",error);
+    console.error("Internal Server Error ", error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
@@ -404,6 +404,17 @@ exports.joinRides = async (req, res) => {
       return responseHandler(res, 404, false, "Ride not found");
     }
 
+    const publisherId = ride.rows[0].user_id;
+
+    const riderPublisherData = await checkUserExists(
+      "users",
+      "id",
+      publisherId
+    );
+    if (user.rowCount === 0) {
+      return responseHandler(res, 404, false, "Rider Publisher not found ");
+    }
+
     const rideData = ride.rows[0];
     let result;
 
@@ -441,13 +452,18 @@ exports.joinRides = async (req, res) => {
       result = await createRecord("ride_joiners", rideJoiner, []);
     }
 
+    const response = {
+      data: result.data,
+      ride_publisher: riderPublisherData.rows[0],
+    };
+
     console.log(result);
     return responseHandler(
       res,
       201,
       true,
       "Ride joiner details added successfully!",
-      result.data
+      response
     );
   } catch (error) {
     console.error(error);
@@ -655,7 +671,7 @@ LEFT JOIN LATERAL (
   ) AS c
 ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
   `;
-
+ 
   const joinFields = `
     JSON_BUILD_OBJECT(
       'id', u.id,
@@ -669,7 +685,8 @@ LEFT JOIN LATERAL (
       'payment_status', u.payment_status,
       'deactivated', u.deactivated,
       'block_status', u.block_status,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'rides', rd.*
@@ -696,11 +713,15 @@ LEFT JOIN LATERAL (
 
   `;
 
+
+
   const additionalFilters = {};
   additionalFilters["rj.status"] = "accepted";
   if (user_id) {
     additionalFilters["rj.user_id"] = user_id;
   }
+
+  console.log(additionalFilters);
 
   getAll(
     req,
@@ -734,6 +755,8 @@ exports.getAllRideByStatus = async (req, res) => {
   ) cautions_agg ON r.cautions IS NOT NULL AND array_length(r.cautions, 1) > 0
   `;
 
+
+  
   const joinFields = `
     JSON_BUILD_OBJECT(
       'id', u.id,
