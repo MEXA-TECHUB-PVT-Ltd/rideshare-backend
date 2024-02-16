@@ -671,7 +671,7 @@ LEFT JOIN LATERAL (
   ) AS c
 ) cautions_agg ON rd.cautions IS NOT NULL AND array_length(rd.cautions, 1) > 0
   `;
- 
+
   const joinFields = `
     JSON_BUILD_OBJECT(
       'id', u.id,
@@ -713,8 +713,6 @@ LEFT JOIN LATERAL (
 
   `;
 
-
-
   const additionalFilters = {};
   additionalFilters["rj.status"] = "accepted";
   if (user_id) {
@@ -754,8 +752,6 @@ exports.getAllRideByStatus = async (req, res) => {
     JOIN cautions ON cautions.id = caution_id
   ) cautions_agg ON r.cautions IS NOT NULL AND array_length(r.cautions, 1) > 0
   `;
-
- 
 
   const joinFields = `
     JSON_BUILD_OBJECT(
