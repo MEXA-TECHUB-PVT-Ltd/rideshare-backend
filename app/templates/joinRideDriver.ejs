@@ -40,26 +40,31 @@
             alt="Company
           Logo"
           />
-          <p id="currentDate"><%= date  %></p>
+          <p id="currentDate"><%= date %></p>
         </div>
         <hr />
         <div style="color: #333; padding: 20px; text-align: center">
-          <h1>Ride Published Confirmation - EZPZE Carpool | Rideshare</h1>
+          <!-- <h1>Ride Published Confirmation - EZPZE Carpool | Rideshare</h1> -->
           <h2>Dear <%= email %>,</h2>
           <p>
-            We are pleased to confirm that your ride has been successfully
-            published on EZPZE Carpool | Rideshare. Your upcoming journey is now
-            visible to a wide audience, allowing potential passengers to
-            seamlessly connect with you.
+            Congratulations! A passenger has selected your published ride on
+            EZPZE Carpool | Rideshare. You are now confirmed as the driver for
+            the upcoming journey.
+          </p>
+          <p>Destination from: <%= destination_from  %> </p>
+          <p>Destination to: <%= destination_to  %></p>
+          <p>Date of Departure: <%= rideDate  %></p>
+          <p>Time of Departure: <%= pickupTime  %></p>
+          <p>
+            Please expect a confirmation email from the passenger shortly
+            regarding the travel date and time. We hope you have a safe and
+            enjoyable trip.
           </p>
           <p>
-            Should you have any further questions or require assistance, please
-            do not hesitate to reach out to us at support@EZPZE.com.
+            If you have any questions or need further assistance, please feel
+            free to contact us at support@EZPZE.com.
           </p>
-          <p>
-            Thank you for choosing EZPZE Carpool | Rideshare, and we wish you a
-            safe and enjoyable journey.
-          </p>
+          <p>Thank you for choosing EZPZE Carpool | Rideshare.</p>
           <p>Best regards, The EZPZE Carpool | Rideshare Team</p>
         </div>
         <hr />
@@ -95,19 +100,7 @@
           <!-- Include your social media icons here -->
         </div>
       </div>
-      <p>
-        &copy; <%= year  %> Ride Share. All rights
-        reserved.
-      </p>
+      <p>&copy; <%= year %> Ride Share. All rights reserved.</p>
     </div>
-
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("currentDate").innerText =
-          new Date().toLocaleDateString();
-        document.getElementById("currentYearFooter").innerText =
-          new Date().getFullYear();
-      });
-    </script>
   </body>
 </html>

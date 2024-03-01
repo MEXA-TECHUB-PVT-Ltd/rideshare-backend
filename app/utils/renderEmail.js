@@ -25,6 +25,18 @@ exports.rideEmailTemplatePath = path.join(
   "templates",
   "ride.ejs"
 );
+exports.publisherRideEmailTemplatePath = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "joinRideDriver.ejs"
+);
+exports.joinRideEmailTemplatePath = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "joinRidePassenger.ejs"
+);
 
 exports.signupEmailTemplatePath = path.join(
   __dirname,
@@ -33,21 +45,50 @@ exports.signupEmailTemplatePath = path.join(
   "signup.ejs"
 );
 
-exports.verificationDataForEjs = (email, otp) => {
+exports.verificationDataForEjs = (email, otp, year) => {
     return {
       email: email,
       verification_code: otp,
+      year,
       base_url: process.env.CLOUDINARY_URL,
     };
 }
 
-exports.singupDataForEjs = () => {
-    return {
+exports.singupDataForEjs = (year) => {
+  return {
+      year,
       base_url: process.env.CLOUDINARY_URL,
     };
 }
-exports.rideDataForEjs = () => {
+exports.rideDataForEjs = (email, year, date) => {
   return {
+    email,
+    year,
+    date,
+    base_url: process.env.CLOUDINARY_URL,
+  };
+};
+exports.publisherRiderJoinEjs = (email, year, date, emailData) => {
+  return {
+    email,
+    year,
+    date,
+    destination_from: emailData.pickup,
+    destination_to: emailData.dropOff,
+    rideDate: emailData.rideDate,
+    pickupTime: emailData.pickupTime,
+    base_url: process.env.CLOUDINARY_URL,
+  };
+};
+exports.joinRideEjs = (email, year, date, emailData) => {
+  return {
+    email,
+    year,
+    date,
+    destination_from: emailData.pickup,
+    destination_to: emailData.dropOff,
+    rideDate: emailData.rideDate,
+    pickupTime: emailData.pickupTime,
     base_url: process.env.CLOUDINARY_URL,
   };
 };

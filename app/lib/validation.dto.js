@@ -58,7 +58,7 @@ exports.verifyCodeSchema = Joi.object({
   email: Joi.string().email().required(),
   otp: Joi.number().required(),
   role: Joi.string().optional().valid("user", "admin"),
-  type: Joi.string().required().valid("signup", "forgot_password"),
+  type: Joi.string().required().valid("signup", "forgot_password", "signin"),
 });
 exports.resetPasswordSchema = Joi.object({
   email: Joi.string().email().required(),

@@ -62,53 +62,85 @@
       .color-black {
         color: #000;
       }
+      .footer-icons {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="header">
         <!-- Your logo goes here -->
-        <img src=<%= base_url +"v1702010841/logo_mt6atd.png" %> alt="Logo"
-        style="width: 80px" />
+        <img
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709298431/rideShare/IMG-20240228-WA0006_e750gw.jpg"
+          alt="Logo"
+          style="width: 80px"
+        />
         <p id="currentDate"></p>
       </div>
 
       <div class="content">
-        <h1 class="color-black">Email Verification</h1>
+        <h1 class="color-black">Dear <%= email %></h1>
         <p class="color-black">
-          Thank you for choosing Ride Share as your trusted platform. To ensure
-          the security of your account and to complete the registration process,
-          we need to verify your email address. Please find your unique
-          verification code below:
+          Thank you for choosing EZPZE Carpool | Rideshare as your trusted
+          platform. We are thrilled to have you on board and look forward to
+          providing you with safe and reliable transportation options.
+        </p>
+        <p>
+          To ensure the security of your account and to complete the
+          registration process, we kindly request that you verify your email
+          address. Below, you will find your unique verification code:
         </p>
         <!-- Verification Link -->
+        <p>Unique Verification Code:</p>
         <div class="verification">
           <strong class="color-black"> <%= verification_code %> </strong>
         </div>
         <p class="color-black">
-          Please enter this code on the verification page to activate your
-          account. If you didn't request this code, please ignore this email,
-          and your account will remain inactive. We look forward to serving you.
+          Please enter this code on the verification page to activate your EZPZE
+          Carpool | Rideshare account. Your security is our top priority, so if
+          you did not request this code, please disregard this email, and your
+          account will remain inactive. Thank you for entrusting us with your
+          transportation needs. We are committed to providing you with seamless
+          and convenient rideshare services.
         </p>
+        <p>Best regards,</p>
+        <p>EZPZE Carpool | Rideshare Team</p>
       </div>
 
       <div class="footer">
         <img
-          src=<%= base_url +"v1702010841/logo_mt6atd.png" %>
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294367/rideShare/logo_ifstq6.png"
           alt="Logo"
           style="width: 80px"
         />
         <p style="margin: 10px 0">
-          &copy; 2023 I can bring it. All right reserved
+          &copy; <%= year  %> I can bring it. All right
+          reserved
         </p>
         <!-- Social Media Icons -->
-        <div>
-          <img src=<%= base_url +"v1698903960/likedin_tj7kss.png" %>
-          alt="Instagram" class="mx-2" /> <img src=<%= base_url
-          +"v1698903493/facebook_icon_pbxcle.png" %> alt="Facebook" class="mx-2"
-          /> <img src=<%= base_url +"v1698903650/instagram_icon_fe3vkq.png "
-          %>alt="LinkedIn" class="mx-2" /> <img src=<%= base_url
-          +"v1698903760/twitter_icon_fd6jya.png" %> alt="Twitter" class="mx-2"
+        <div class="footer-icons">
+          <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294353/rideShare/ints_kuqvuk.png"
+            alt="Instagram"
+            class="mx-2"
+          />
+          <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294337/rideShare/fb_wj954y.png"
+            alt="Facebook"
+            class="mx-2"
+          />
+          <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294361/rideShare/link_ldbjza.png"
+            alt="LinkedIn"
+            class="mx-2"
+          />
+          <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294382/rideShare/twiiter_itgmmj.png"
+            alt="Twitter"
+            class="mx-2"
           />
         </div>
       </div>
@@ -118,6 +150,11 @@
       document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("currentDate").innerText =
           new Date().toLocaleDateString();
+        var currentYearElements =
+          document.getElementsByClassName("currentYear");
+        for (var i = 0; i < currentYearElements.length; i++) {
+          currentYearElements[i].innerText = new Date().getFullYear();
+        }
       });
     </script>
   </body>
