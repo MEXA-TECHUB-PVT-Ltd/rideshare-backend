@@ -45,9 +45,9 @@ exports.create = async (req, res) => {
 
   try {
     const userAlreadyExists = await checkUserAlreadyExist(email);
-    if (userAlreadyExists) {
-      return responseHandler(res, 409, false, "User already exists");
-    }
+    // if (userAlreadyExists) {
+    //   return responseHandler(res, 409, false, "User already exists");
+    // }
 
     const defaultRole = role ? role : "user";
 
@@ -94,23 +94,22 @@ exports.create = async (req, res) => {
     }
 
     try {
+      const currentYear = new Date().getFullYear();
+      const date = new Date().toLocaleDateString();
       // Use the rendered HTML content for the email
-      const verificationData = verificationDataForEjs(email, otp);
+      const verificationData = verificationDataForEjs(email, otp, currentYear);
       const verificationHtmlContent = await renderEJSTemplate(
         verificationEmailTemplatePath,
         verificationData
       );
       try {
-        
-      } catch (error) {
-        
-      }
+      } catch (error) {}
       const emailSent = await sendEmail(
         email,
-        "Verify Your Email",
+        "Action Required: Verify Your Email Address to Activate Your EZPZE Carpool | Rideshare Account",
         verificationHtmlContent
       );
- 
+
       if (emailSent.success) {
         responseHandler(
           res,
@@ -120,7 +119,7 @@ exports.create = async (req, res) => {
           newUser
         );
       } else {
-        console.log("email hasn't been sent successfully")
+        console.log("email hasn't been sent successfully");
         // responseHandler(res, 500, false, emailSent.message);
       }
     } catch (sendEmailError) {
@@ -135,13 +134,14 @@ exports.create = async (req, res) => {
 
 exports.signIn = async (req, res) => {
   const { email, password, type, device_id, role } = req.body;
-
   const defaultRole = role ? role : "user";
 
+  const otp = crypto.randomInt(1000, 9999);
   try {
     const user = await checkUserExists("users", "email", email, [
-      { column: "role", value: defaultRole, column: "type", value: type },
+      { column: "role", value: defaultRole }, // Assuming this function correctly filters users
     ]);
+
     if (user.rowCount === 0) {
       return responseHandler(
         res,
@@ -155,48 +155,62 @@ exports.signIn = async (req, res) => {
       );
     }
 
+    // Moved inside the conditional blocks to ensure it's only executed as needed
+    let updatedResult;
+
     if (type === "email") {
       const isPasswordValid = await bcryptjs.compare(
         password,
         user.rows[0].password
       );
+
       if (!isPasswordValid) {
         return responseHandler(res, 401, false, "Invalid credentials");
       }
+
+      // Update OTP after verifying password
+      updatedResult = await updateRecord(
+        "users",
+        { otp }, // What to update
+        ["email"], // Where to update
+        { column: "email", value: email } // Condition
+      );
+
+      console.log(updatedResult);
     } else {
       // Handle third-party authentication, e.g., Google
       // Assuming the email has already been validated by Google and you trust it
-      // No password check needed here
+      // Here, you might want to update the OTP as well, depending on your logic
     }
 
-    const userData = {
-      device_id,
-    };
+    // Assuming the update was successful if we reached this point
+    // Continue with sending the OTP via email
 
-    const updatedResult = await updateRecord(
-      "users",
-      userData,
-      ["password", "otp", "admin_name"],
-      {
-        column: "id",
-        value: user.rows[0].id,
-      }
+    const currentYear = new Date().getFullYear();
+    const date = new Date().toLocaleDateString();
+    const verificationData = verificationDataForEjs(email, otp, currentYear);
+    const verificationHtmlContent = await renderEJSTemplate(
+      verificationEmailTemplatePath,
+      verificationData
     );
 
-    const payload = {
-      userId: user.rows[0].id, // Ensure you are referencing the correct property
-      email: user.rows[0].email,
-    };
+    const emailSent = await sendEmail(
+      email,
+      "Action Required: Verify Your Email Address to Activate Your EZPZE Carpool | Rideshare Account",
+      verificationHtmlContent
+    );
 
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
-
-    delete user.rows[0].password;
-
-    return responseHandler(res, 200, true, "Sign-in successful", {
-      updatedResult,
-      token,
-      device_id,
-    });
+    if (emailSent.success) {
+      responseHandler(
+        res,
+        201,
+        true,
+        "We have sent you an email, please verify to sign in"
+      );
+    } else {
+      console.log("Email hasn't been sent successfully");
+      // Consider handling this case more gracefully in production
+    }
   } catch (error) {
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
@@ -280,18 +294,21 @@ exports.update = async (req, res) => {
     if (insurance_status !== undefined)
       userData.insurance_status = insurance_status;
     if (location !== undefined) userData.location = location;
-    if (profile_uri !== undefined)
-      userData.profile_uri = profile_uri; 
+    if (profile_uri !== undefined) userData.profile_uri = profile_uri;
 
     if (Object.keys(userData).length === 0) {
       return responseHandler(res, 400, false, "No update information provided");
     }
 
-    const updateResult = await updateRecord("users", userData, ["password", "otp", "admin_name"], {
-      column: "id",
-      value: id,
-    });
-
+    const updateResult = await updateRecord(
+      "users",
+      userData,
+      ["password", "otp", "admin_name"],
+      {
+        column: "id",
+        value: id,
+      }
+    );
 
     if (updateResult.error) {
       return responseHandler(
@@ -315,47 +332,49 @@ exports.update = async (req, res) => {
   }
 };
 
-
 exports.updateInsuranceStatus = async (req, res) => {
   const { user_id, status } = req.body;
-    try {
-      const userExists = await checkUserExists("users", "id", user_id);
-      if (userExists.rowCount === 0) {
-        return responseHandler(res, 404, false, "User not found");
-      }
+  try {
+    const userExists = await checkUserExists("users", "id", user_id);
+    if (userExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "User not found");
+    }
 
-      const userData = {
+    const userData = {
       connected_insurances_user: status,
-      };
+    };
 
-      const result = await updateRecord("users", userData, ["password", "otp", "admin_name"], {
+    const result = await updateRecord(
+      "users",
+      userData,
+      ["password", "otp", "admin_name"],
+      {
         column: "id",
         value: user_id,
-      });
-
-
-      if (result.rowCount === 0) {
-        return responseHandler(
-          res,
-          500,
-          false,
-          "Error while retrieving updated user data"
-        );
       }
+    );
 
+    if (result.rowCount === 0) {
       return responseHandler(
         res,
-        200,
-        true,
-        "User status updated successfully!",
-        result
+        500,
+        false,
+        "Error while retrieving updated user data"
       );
-    } catch (error) {
-      console.error(error);
-      return responseHandler(res, 500, false, "Internal Server Error");
     }
-}
 
+    return responseHandler(
+      res,
+      200,
+      true,
+      "User status updated successfully!",
+      result
+    );
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
 
 exports.nullifyUserPreference = async (req, res) => {
   const {
@@ -448,6 +467,8 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+
+
 // verify code for both email and forgot password
 exports.verify_otp = async (req, res) => {
   const { email, otp, role, type } = req.body;
@@ -473,18 +494,20 @@ exports.verify_otp = async (req, res) => {
       column: "email",
       value: email,
     });
-
+    
     // If type is 'signup', send the verification email
     if (type === "signup") {
+      const currentYear = new Date().getFullYear();
+      const date = new Date().toLocaleDateString();
       try {
-        const signupData = singupDataForEjs();
+        const signupData = singupDataForEjs(currentYear);
         const signupHtmlContent = await renderEJSTemplate(
           signupEmailTemplatePath,
           signupData
         );
         const emailSent = await sendEmail(
           email,
-          "Sign Up Verification",
+          "Welcome to EZPZE Carpool | Rideshare",
           signupHtmlContent
         );
 
@@ -502,6 +525,18 @@ exports.verify_otp = async (req, res) => {
           "Error sending verification email"
         );
       }
+    }
+
+    if (type === "signin") {
+      const payload = {
+        userId: user.rows[0].id, // Ensure you are referencing the correct property
+        email: user.rows[0].email,
+      };
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+      delete user.rows[0].password;
+      return responseHandler(res, 200, true, "Sign-in successfully", {
+        token,
+      });
     }
 
     // Send a response back that the OTP was verified successfully
@@ -560,7 +595,7 @@ exports.resetPassword = async (req, res) => {
 
 exports.updatePassword = async (req, res) => {
   const { email, old_password, new_password, role } = req.body;
-  console.log(role)
+  console.log(role);
   const defaultRole = role ? role : "user";
   try {
     const user = await checkUserExists("users", "email", email, [
@@ -933,13 +968,7 @@ exports.get = async (req, res) => {
   const tableName = "users";
   const fields = `*`;
 
-  return getSingle(
-    req,
-    res,
-    tableName,
-    "id",
-    fields,
-  );
+  return getSingle(req, res, tableName, "id", fields);
 };
 
 exports.getUserWithDetails = async (req, res) => {

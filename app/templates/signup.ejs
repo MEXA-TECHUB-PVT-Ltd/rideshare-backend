@@ -47,6 +47,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
       }
       .icon {
         background-color: #fff;
@@ -62,74 +63,131 @@
       .mx-2 {
         margin: 0 20px;
       }
+      .footer-icons {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
       /* Add more styles as needed */
     </style>
   </head>
   <body>
     <div class="container">
-      <img src=<%= base_url +"v1702010841/logo_mt6atd.png" %> alt="Publish Ride"
-      width="70px" style="margin-bottom: 20px" />
+      <img
+        src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709298431/rideShare/IMG-20240228-WA0006_e750gw.jpg"
+        alt="Publish Ride"
+        width="70px"
+        style="margin-bottom: 20px"
+      />
       <div class="top-header feature">
-        <img src=<%= base_url +"v1702010720/Illustration_xyajg1.png" %>
-        alt="Publish Ride" class="feature-icon" />
-        <h2 style="color: #fff">Welcome to Ride Share!</h2>
-        <p style="color: #fff">We are so happy to have you.</p>
+        <img
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294345/rideShare/Illustration_blmfjn.png"
+          alt="Publish Ride"
+          class="feature-icon"
+        />
+        <p style="color: #fff">
+          Thank you for choosing EZPZE Carpool | Rideshare
+        </p>
+        <p>We are delighted to welcome you to our platform.</p>
       </div>
+      <h2>Discover Our Premier Features</h2>
 
-      <h2 style="text-align: center">Our Best Features</h2>
+      <!-- <h2 style="text-align: center">Our Best Features</h2> -->
       <div class="feature flex bg-black">
-        <img src=<%= base_url +"v1702010778/paper-plane_ch6pok.png" %> alt="Add
-        Driver to Favorite" width="50" height="50" class="icon" />
+        <img
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294375/rideShare/paper-plane_wxfzgp.png"
+          alt="Add Driver to Favorite"
+          width="50"
+          height="50"
+          class="icon"
+        />
         <div>
-          <h2>Publish Ride</h2>
+          <h2>Share your Journey</h2>
           <p>
-            With the "Publish Ride" feature, you can easily share your upcoming
-            journey with a wide audience. Whether you're planning a road trip, a
-            bike ride, or a thrilling adventure, this feature allows you to make
-            your travel plans public
+            Utilize the "Publish Ride" feature to effortlessly broadcast your
+            upcoming trips, whether it's a road trip, a bike adventure, or any
+            other exciting travel plan.
           </p>
         </div>
       </div>
       <div class="feature flex bg-black">
         <div>
-          <h2>Join Ride</h2>
+          <h2>Join Ride; Effortless Connections</h2>
           <p>
-            Seamlessly connect drivers offering rides with passengers seeking
-            cost-effective and eco-friendly transportation, fostering community
-            and convenience.
+            Seamlessly link up with drivers providing rides and passengers
+            seeking economical and environmentally conscious transportation,
+            promoting community and convenience.
           </p>
         </div>
-        <img src=<%= base_url +"v1702011448/connect_mdlk7x.png" %> alt="Add
-        Driver to Favorite" width="50" height="50" class="icon" />
+        <img
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294319/rideShare/connect_z60aun.png"
+          alt="Add Driver to Favorite"
+          width="50"
+          height="50"
+          class="icon"
+        />
       </div>
       <div class="feature flex bg-black">
-        <img src=<%= base_url +"v1702010743/favorite_clmtq3.png" %> alt="Add
-        Driver to Favorite" width="50" height="50" class="icon" />
+        <img
+          src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294328/rideShare/favorite_nwxfj7.png"
+          alt="Add Driver to Favorite"
+          width="50"
+          height="50"
+          class="icon"
+        />
         <div>
-          <h2>Add Driver to Favorite</h2>
+          <h2>Personalized Experience & Add Driver to Favorite</h2>
           <p>
-            Our "Add Driver to Favorites" feature is designed to provide you
-            with a seamless and convenient way to personalize your experience on
-            our platform. Whether you're a rideshare user, delivery recipient,
-            or simply want to remember specific drivers for future interactions
+            The "Add Driver to Favorites" feature is tailored to enhance your
+            platform experience, enabling easy personalization for rideshare
+            users, delivery recipients, and anyone wishing to preserve specific
+            drivers for future interactions.
           </p>
         </div>
       </div>
 
       <div class="footer">
-        <p>© 2023 Ride Share. All rights reserved.</p>
-        <img src=<%= base_url +"v1698903960/likedin_tj7kss.png" %>
-        alt="Instagram" class="mx-2" /> <img src=<%= base_url
-        +"v1698903493/facebook_icon_pbxcle.png" %> alt="Facebook" class="mx-2"
-        /> <img src=<%= base_url +"v1698903650/instagram_icon_fe3vkq.png "
-        %>alt="LinkedIn" class="mx-2" /> <img src=<%= base_url
-        +"v1698903760/twitter_icon_fd6jya.png" %> alt="Twitter" class="mx-2" />
+        <div class="footer-icons">
+          <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294353/rideShare/ints_kuqvuk.png"
+            alt="Instagram"
+            class="mx-2"
+            />
+            <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294337/rideShare/fb_wj954y.png"
+            alt="Facebook"
+            class="mx-2"
+            />
+            <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294361/rideShare/link_ldbjza.png"
+            alt="LinkedIn"
+            class="mx-2"
+            />
+            <img
+            src="https://res.cloudinary.com/dfbds6fd7/image/upload/v1709294382/rideShare/twiiter_itgmmj.png"
+            alt="Twitter"
+            class="mx-2"
+            />
+          </div>
+          <p>
+            Welcome aboard, and we look forward to providing you with a seamless
+          and enjoyable rideshare experience.
+        </p>
         <p>
-          If you have any questions, feel free message us at
-          RideShare@gmail.com. All right reserved. Update email preferences or
-          unsubscribe.
+          For any inquiries, please don't hesitate to reach out to us at
+          support@EZPZE.com. To manage your email preferences or unsubscribe,
+          kindly use the provided options.
         </p>
       </div>
+      <p>© <%= year  %> EZPZE. All rights reserved.</p>
     </div>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+            var currentYearElements = document.getElementsByClassName("currentYear");
+    for (var i = 0; i < currentYearElements.length; i++) {
+        currentYearElements[i].innerText = new Date().getFullYear();
+    }
+      });
+    </script>
   </body>
 </html>

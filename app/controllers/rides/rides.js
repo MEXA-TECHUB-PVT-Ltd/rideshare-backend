@@ -1,4 +1,5 @@
 // external libraries
+const moment = require('moment');
 
 // project files
 const { responseHandler } = require("../../utils/commonResponse");
@@ -17,6 +18,10 @@ const {
   rideDataForEjs,
   renderEJSTemplate,
   rideEmailTemplatePath,
+  publisherRideEmailTemplatePath,
+  joinRideEmailTemplatePath,
+  publisherRiderJoinEjs,
+  joinRideEjs,
 } = require("../../utils/renderEmail");
 const sendEmail = require("../../lib/sendEmail");
 
@@ -134,16 +139,19 @@ WHERE rd.id = $1;
 `;
 
     const rideDetailsResult = await pool.query(rideDetailsQuery, [rideId]);
+    const email = userExists.rows[0].email;
 
     try {
-      const rideData = rideDataForEjs();
+      const currentYear = new Date().getFullYear();
+      const date = new Date().toLocaleDateString();
+      const rideData = rideDataForEjs(email, currentYear, date);
       const rideHtmlContent = await renderEJSTemplate(
         rideEmailTemplatePath,
         rideData
       );
       const emailSent = await sendEmail(
         userExists.rows[0].email,
-        "Ride Published",
+        "Ride Published Confirmation - EZPZE Carpool | Rideshare",
         rideHtmlContent
       );
 
@@ -411,12 +419,13 @@ exports.joinRides = async (req, res) => {
       "id",
       publisherId
     );
-    if (user.rowCount === 0) {
+    if (riderPublisherData.rowCount === 0) {
       return responseHandler(res, 404, false, "Rider Publisher not found ");
     }
 
     const rideData = ride.rows[0];
     let result;
+    // console.log({ code: "RIDE DATA", rideData });
 
     if (rideData.request_option === "instant") {
       // Logic for instant booking
@@ -452,12 +461,76 @@ exports.joinRides = async (req, res) => {
       result = await createRecord("ride_joiners", rideJoiner, []);
     }
 
+    const currentYear = new Date().getFullYear();
+    const date = new Date().toLocaleDateString();
+    const email = user.rows[0].email;
+    const riderPublisherEmail = riderPublisherData.rows[0].email;
+
+    console.log({ email, riderPublisherEmail });
+
+    const pickup = rideData.pickup_address;
+    const dropOff = rideData.drop_off_address;
+    const rideDate = rideData.ride_date;
+    const pickupTime = rideData.time_to_pickup;
+    const formattedRideDate = moment(rideDate).format("LL"); // e.g., December 15, 2023
+    const formattedPickupTime = moment(pickupTime, "HH:mm:ss").format(
+      "hh:mm A"
+    );
+    const emailData = {
+      pickup,
+      dropOff,
+      rideDate: formattedRideDate,
+      pickupTime: formattedPickupTime,
+    };
+
+    const publishRide = publisherRiderJoinEjs(
+      riderPublisherEmail,
+      currentYear,
+      date,
+      emailData
+    );
+    const joinRide = joinRideEjs(email, currentYear, date, emailData);
+    const ridePublisherHtmlContent = await renderEJSTemplate(
+      publisherRideEmailTemplatePath,
+      publishRide
+    );
+    const rideJoinerHtmlContent = await renderEJSTemplate(
+      joinRideEmailTemplatePath,
+      joinRide
+    );
+    try {
+      const emailSent = await sendEmail(
+        riderPublisherEmail,
+        "Ride Confirmation - EZPZE Carpool | Rideshare",
+        ridePublisherHtmlContent
+      );
+      const emailSentToRider = await sendEmail(
+        email,
+        "Ride Confirmation - EZPZE Carpool | Rideshare",
+        rideJoinerHtmlContent
+      );
+
+      if (!emailSent.success || !emailSentToRider.success) {
+        console.error(emailSent.message);
+        // Consider whether you want to return here or just log the error
+
+        // return responseHandler(res, 500, false, emailSent.message);
+      }
+    } catch (sendEmailError) {
+      console.error(sendEmailError);
+      // return responseHandler(
+      //   res,
+      //   500,
+      //   false,
+      //   "Error sending verification email"
+      // );
+    }
+
     const response = {
       data: result.data,
       ride_publisher: riderPublisherData.rows[0],
     };
 
-    console.log(result);
     return responseHandler(
       res,
       201,
