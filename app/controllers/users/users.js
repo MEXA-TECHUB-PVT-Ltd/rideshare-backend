@@ -135,7 +135,7 @@ exports.create = async (req, res) => {
 exports.signIn = async (req, res) => {
   const { email, password, type, device_id, role } = req.body;
   const defaultRole = role ? role : "user";
-
+  console.log("BODY", req.body);
   const otp = crypto.randomInt(1000, 9999);
   try {
     const user = await checkUserExists("users", "email", email, [
@@ -186,30 +186,43 @@ exports.signIn = async (req, res) => {
     // Assuming the update was successful if we reached this point
     // Continue with sending the OTP via email
 
-    const currentYear = new Date().getFullYear();
-    const date = new Date().toLocaleDateString();
-    const verificationData = verificationDataForEjs(email, otp, currentYear);
-    const verificationHtmlContent = await renderEJSTemplate(
-      verificationEmailTemplatePath,
-      verificationData
-    );
-
-    const emailSent = await sendEmail(
-      email,
-      "Action Required: Verify Your Email Address to Activate Your EZPZE Carpool | Rideshare Account",
-      verificationHtmlContent
-    );
-
-    if (emailSent.success) {
-      responseHandler(
-        res,
-        201,
-        true,
-        "We have sent you an email, please verify to sign in"
+    if (defaultRole === "user") {
+      const currentYear = new Date().getFullYear();
+      const date = new Date().toLocaleDateString();
+      const verificationData = verificationDataForEjs(email, otp, currentYear);
+      const verificationHtmlContent = await renderEJSTemplate(
+        verificationEmailTemplatePath,
+        verificationData
       );
+
+      const emailSent = await sendEmail(
+        email,
+        "Action Required: Verify Your Email Address to Activate Your EZPZE Carpool | Rideshare Account",
+        verificationHtmlContent
+      );
+
+      if (emailSent.success) {
+        responseHandler(
+          res,
+          201,
+          true,
+          "We have sent you an email, please verify to sign in"
+        );
+      } else {
+        console.log("Email hasn't been sent successfully");
+        // Consider handling this case more gracefully in production
+      }
     } else {
-      console.log("Email hasn't been sent successfully");
-      // Consider handling this case more gracefully in production
+      const payload = {
+        userId: user.rows[0].id, // Ensure you are referencing the correct property
+        email: user.rows[0].email,
+      };
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+      delete user.rows[0].password;
+      return responseHandler(res, 200, true, "Sign-in successfully", {
+        token,
+        admin: user.rows[0],
+      });
     }
   } catch (error) {
     console.error(error);
@@ -467,8 +480,6 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-
-
 // verify code for both email and forgot password
 exports.verify_otp = async (req, res) => {
   const { email, otp, role, type } = req.body;
@@ -494,7 +505,7 @@ exports.verify_otp = async (req, res) => {
       column: "email",
       value: email,
     });
-    
+
     // If type is 'signup', send the verification email
     if (type === "signup") {
       const currentYear = new Date().getFullYear();
@@ -534,8 +545,9 @@ exports.verify_otp = async (req, res) => {
       };
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
       delete user.rows[0].password;
+      updatedUser.token = token;
       return responseHandler(res, 200, true, "Sign-in successfully", {
-        token,
+        user: updatedUser,
       });
     }
 
