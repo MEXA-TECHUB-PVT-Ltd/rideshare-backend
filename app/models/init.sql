@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS rides(
   pickup_address VARCHAR(255),
   drop_off_location POINT,
   drop_off_address VARCHAR(255),
+  reference TEXT,
   tolls BOOLEAN DEFAULT FALSE,
   -- Tolls exist or not
   route_time INTERVAL,
@@ -245,6 +246,7 @@ CREATE TABLE IF NOT EXISTS notification (
   sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   receiver_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type INT NOT NULL REFERENCES notification_types(id) ON DELETE CASCADE,
+  ride_id INT NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   is_read BOOLEAN DEFAULT FALSE,
