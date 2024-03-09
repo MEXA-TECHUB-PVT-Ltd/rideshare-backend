@@ -171,6 +171,7 @@ exports.publishRidesSchema = Joi.object({
     address: Joi.string().optional(),
   }).required(),
   pickup_address: Joi.string().required(),
+  reference: Joi.string().optional(),
   drop_off_address: Joi.string().required(),
   tolls: Joi.boolean(),
   route_time: Joi.string().required(),

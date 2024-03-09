@@ -1,5 +1,5 @@
 // external libraries
-const moment = require('moment');
+const moment = require("moment");
 
 // project files
 const { responseHandler } = require("../../utils/commonResponse");
@@ -46,6 +46,7 @@ exports.publishRides = async (req, res) => {
     return_ride_status,
     return_ride_id,
     vehicles_details_id,
+    reference,
   } = req.body;
   const pickupPoint = `(${pickupLat}, ${pickupLong})`;
   const dropOffPoint = `(${dropOffLat}, ${dropOffLong})`;
@@ -68,6 +69,7 @@ exports.publishRides = async (req, res) => {
     return_ride_status,
     return_ride_id,
     vehicles_details_id,
+    reference,
   };
 
   try {
@@ -622,6 +624,7 @@ exports.getRideJoiners = async (req, res) => {
       'max_passengers', rd.max_passengers,
       'price_per_seat', rd.price_per_seat,
       'return_ride_status', rd.return_ride_status,
+      'reference', rd.reference,
       'current_passenger_count', rd.current_passenger_count
     ) AS ride_details,
     JSON_BUILD_OBJECT(
@@ -915,6 +918,7 @@ exports.getAllRequestedRides = async (req, res) => {
       'price_per_seat', rd.price_per_seat,
       'return_ride_status', rd.return_ride_status,
       'current_passenger_count', rd.current_passenger_count,
+      'reference', rd.reference,
       'cautions', rd.cautions
     ) AS ride_details,
     JSON_BUILD_OBJECT(
@@ -1008,6 +1012,7 @@ exports.getAllRequestedByRides = async (req, res) => {
     'canceled_reason', rd.canceled_reason,
     'canceled_ride_cost', rd.canceled_ride_cost,
     'ride_duration', rd.ride_duration,
+    'reference', rd.reference,
     'ride_end_time', rd.ride_end_time
     ) AS ride_details,
     JSON_BUILD_OBJECT(
@@ -1104,6 +1109,7 @@ exports.getAllRequestedByUser = async (req, res) => {
     'canceled_reason', rd.canceled_reason,
     'canceled_ride_cost', rd.canceled_ride_cost,
     'ride_duration', rd.ride_duration,
+    'reference', rd.reference,
     'ride_end_time', rd.ride_end_time
     ) AS ride_details,
     JSON_BUILD_OBJECT(

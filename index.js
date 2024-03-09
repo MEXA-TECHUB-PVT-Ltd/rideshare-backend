@@ -12,11 +12,11 @@ const { setupSocket } = require("./app/config/socketSetup");
 const setupRideEvents = require("./app/utils/rideEvents");
 
 const app = express();
-const server = http.createServer(app); 
+const server = http.createServer(app);
 
 app.set("view engine", "ejs");
 
-const PORT = process.env.PORT || 3026;
+const PORT = process.env.PORT || 3025;
 
 app.use(cors());
 app.use(express.json());
@@ -31,7 +31,6 @@ app.use("/api", api);
 // Set up Socket.IO
 setupSocket(server);
 setupRideEvents();
-
 
 app.get("/signup", (req, res) => {
   res.render(path.join(__dirname, "app", "templates", "signup.ejs"), {

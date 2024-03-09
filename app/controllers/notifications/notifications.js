@@ -39,10 +39,10 @@ exports.deleteRow = async (tableName, column) => {
 
 exports.createNotification = async (req, res) => {
   try {
-    const { sender_id, receiver_id, type, title, content } = req.body;
+    const { sender_id, receiver_id, ride_id, type, title, content } = req.body;
     const createQuery = `
-        INSERT INTO public.notification (sender_id, receiver_id, type, title, content)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO public.notification (sender_id, receiver_id, type, title, content, ride_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *`;
     const result = await pool.query(createQuery, [
       sender_id,
@@ -50,6 +50,7 @@ exports.createNotification = async (req, res) => {
       type,
       title,
       content,
+      ride_id,
     ]);
 
     if (result.rowCount === 1) {
@@ -58,6 +59,7 @@ SELECT
   n.id AS notification_id,
   n.title,
   n.content,
+  n.ride_id,
   n.is_read,
   n.created_at AS notification_created_at,
   t.name AS notification_type_name,
@@ -118,14 +120,21 @@ WHERE n.id = $1
 
 exports.updateNotification = async (req, res) => {
   try {
-    const { notification_id, sender_id, receiver_id, type, title, content } =
-      req.body;
+    const {
+      notification_id,
+      sender_id,
+      ride_id,
+      receiver_id,
+      type,
+      title,
+      content,
+    } = req.body;
 
     // Update the notification
     const updateQuery = `
         UPDATE public.notification
-        SET sender_id = $1, receiver_id = $2, type = $3, title = $4, content = $5
-        WHERE id = $6
+        SET sender_id = $1, receiver_id = $2, type = $3, title = $4, content = $5, ride_id =$6
+        WHERE id = $7
         RETURNING *`;
 
     const result = await pool.query(updateQuery, [
@@ -134,6 +143,7 @@ exports.updateNotification = async (req, res) => {
       type,
       title,
       content,
+      ride_id,
       notification_id,
     ]);
 
@@ -143,6 +153,7 @@ exports.updateNotification = async (req, res) => {
           n.id AS notification_id,
           n.title,
           n.content,
+          n.ride_id,
           n.is_read,
           n.created_at AS notification_created_at,
           t.name AS notification_type_name,
@@ -209,6 +220,7 @@ exports.getAllNotificationsByUser = async (req, res) => {
         n.id AS notification_id,
         n.title,
         n.content,
+        n.ride_id,
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
@@ -278,6 +290,7 @@ exports.getAllReadNotificationsByUser = async (req, res) => {
         n.id AS notification_id,
         n.title,
         n.content,
+        n.ride_id,
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
@@ -346,6 +359,7 @@ exports.getAllUnReadNotificationsByUser = async (req, res) => {
         n.id AS notification_id,
         n.title,
         n.content,
+        n.ride_id,
         n.is_read,
         n.created_at AS notification_created_at,
         t.name AS notification_type_name,
@@ -476,6 +490,7 @@ exports.readNotification = async (req, res) => {
           n.id AS notification_id,
           n.title,
           n.content,
+          n.ride_id,
           n.is_read,
           n.created_at AS notification_created_at,
           t.name AS notification_type_name,

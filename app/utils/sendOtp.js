@@ -14,7 +14,7 @@ const sendOtp = async (email, res, user_id) => {
     const subject = "Verify Account";
     const htmlContent = "YOUR CODE IS " + otp;
 
-    sendEmail(email, subject, htmlContent, res);
+    // sendEmail(email, subject, htmlContent, res);
     return otp;
   } catch (err) {
     console.log(err);

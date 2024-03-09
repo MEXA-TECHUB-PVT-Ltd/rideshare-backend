@@ -82,32 +82,25 @@
       </div>
 
       <div class="content">
-        <h1 class="color-black">Dear <%= email %></h1>
+        <h1 class="color-black">Dear <%= email %>,</h1>
         <p class="color-black">
-          Thank you for choosing EZPZE Carpool | Rideshare as your trusted
-          platform. We are thrilled to have you on board and look forward to
-          providing you with safe and reliable transportation options.
+          I hope this message finds you well. We are pleased to inform you that
+          a ride is currently available from "From Location" to "Destination
+          Location" through EZEPZE Carpool | Rideshare. If you are interested in
+          availing this ride, please do not hesitate to book your spot at your
+          earliest convenience.
         </p>
         <p>
-          To ensure the security of your account and to complete the
-          registration process, we kindly request that you verify your email
-          address. Below, you will find your unique verification code:
+          Feel free to reach out if you have any questions or require further
+          assistance. We are committed to providing safe and reliable
+          ridesharing services for your convenience.
         </p>
-        <!-- Verification Link -->
-        <p>Unique Verification Code:</p>
-        <div class="verification">
-          <strong class="color-black"> <%= verification_code %> </strong>
-        </div>
         <p class="color-black">
-          Please enter this code on the verification page to activate your EZPZE
-          Carpool | Rideshare account. Your security is our top priority, so if
-          you did not request this code, please disregard this email, and your
-          account will remain inactive. Thank you for entrusting us with your
-          transportation needs. We are committed to providing you with seamless
-          and convenient rideshare services.
+          Thank you for choosing EZEPZE Carpool | Rideshare. We appreciate your
+          continued support.
         </p>
-        <p>Best regards,</p>
-        <p>EZPZE Carpool | Rideshare Team</p>
+        <p>Warm regards, <%= email %> </p>
+        <p>EZEPZE Carpool | Rideshare</p>
       </div>
 
       <div class="footer">
@@ -117,8 +110,7 @@
           style="width: 80px"
         />
         <p style="margin: 10px 0">
-          &copy; <%= year  %> I can bring it. All right
-          reserved
+          &copy; <%= year %> I can bring it. All right reserved
         </p>
         <!-- Social Media Icons -->
         <div class="footer-icons">

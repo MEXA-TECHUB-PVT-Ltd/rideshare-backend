@@ -12,6 +12,12 @@ exports.renderEJSTemplate = async (templatePath, data) => {
   });
 };
 
+exports.forgetEmailTemplatePath = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "forgetPassword.ejs"
+);
 exports.verificationEmailTemplatePath = path.join(
   __dirname,
   "..",
@@ -24,6 +30,12 @@ exports.rideEmailTemplatePath = path.join(
   "..",
   "templates",
   "ride.ejs"
+);
+exports.rideNotifyEmailTemplatePath = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "notifyEmail.ejs"
 );
 exports.publisherRideEmailTemplatePath = path.join(
   __dirname,
@@ -66,6 +78,21 @@ exports.rideDataForEjs = (email, year, date) => {
     year,
     date,
     base_url: process.env.CLOUDINARY_URL,
+  };
+};
+exports.rideNotifyDataForEjs = (
+  email,
+  year,
+  date,
+  pickup_location,
+  drop_off_location
+) => {
+  return {
+    email,
+    year,
+    date,
+    pickup_location,
+    drop_off_location,
   };
 };
 exports.publisherRiderJoinEjs = (email, year, date, emailData) => {
