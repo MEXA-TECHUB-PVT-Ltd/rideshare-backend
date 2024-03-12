@@ -44,8 +44,8 @@ exports.notifyUsersForNewRide = async (rideData) => {
           email,
           currentYear,
           date,
-          pickup_location,
-          drop_off_location
+          pickup_address,
+          drop_off_address
         );
         const rideHtmlContent = await renderEJSTemplate(
           rideNotifyEmailTemplatePath,
