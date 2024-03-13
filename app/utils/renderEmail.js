@@ -1,5 +1,5 @@
-const path = require('path');
-const ejs = require('ejs');
+const path = require("path");
+const ejs = require("ejs");
 
 exports.renderEJSTemplate = async (templatePath, data) => {
   return new Promise((resolve, reject) => {
@@ -58,20 +58,20 @@ exports.signupEmailTemplatePath = path.join(
 );
 
 exports.verificationDataForEjs = (email, otp, year) => {
-    return {
-      email: email,
-      verification_code: otp,
-      year,
-      base_url: process.env.CLOUDINARY_URL,
-    };
-}
+  return {
+    email: email,
+    verification_code: otp,
+    year,
+    base_url: process.env.CLOUDINARY_URL,
+  };
+};
 
 exports.singupDataForEjs = (year) => {
   return {
-      year,
-      base_url: process.env.CLOUDINARY_URL,
-    };
-}
+    year,
+    base_url: process.env.CLOUDINARY_URL,
+  };
+};
 exports.rideDataForEjs = (email, year, date) => {
   return {
     email,
@@ -84,15 +84,15 @@ exports.rideNotifyDataForEjs = (
   email,
   year,
   date,
-  pickup_location,
-  drop_off_location
+  pickup_address,
+  drop_off_address
 ) => {
   return {
     email,
     year,
     date,
-    pickup_location,
-    drop_off_location,
+    pickup_address,
+    drop_off_address,
   };
 };
 exports.publisherRiderJoinEjs = (email, year, date, emailData) => {

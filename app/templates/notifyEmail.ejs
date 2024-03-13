@@ -85,10 +85,10 @@
         <h1 class="color-black">Dear <%= email %>,</h1>
         <p class="color-black">
           I hope this message finds you well. We are pleased to inform you that
-          a ride is currently available from "From Location" to "Destination
-          Location" through EZEPZE Carpool | Rideshare. If you are interested in
-          availing this ride, please do not hesitate to book your spot at your
-          earliest convenience.
+          a ride is currently available from <%= pickup_address %> to <%=
+          drop_off_address %> through EZEPZE Carpool | Rideshare. If you are
+          interested in availing this ride, please do not hesitate to book your
+          spot at your earliest convenience.
         </p>
         <p>
           Feel free to reach out if you have any questions or require further
@@ -99,7 +99,7 @@
           Thank you for choosing EZEPZE Carpool | Rideshare. We appreciate your
           continued support.
         </p>
-        <p>Warm regards, <%= email %> </p>
+        <p>Warm regards,</p>
         <p>EZEPZE Carpool | Rideshare</p>
       </div>
 
@@ -109,9 +109,7 @@
           alt="Logo"
           style="width: 80px"
         />
-        <p style="margin: 10px 0">
-          &copy; <%= year %> I can bring it. All right reserved
-        </p>
+        <p style="margin: 10px 0">&copy; <%= year %> All right reserved</p>
         <!-- Social Media Icons -->
         <div class="footer-icons">
           <img
