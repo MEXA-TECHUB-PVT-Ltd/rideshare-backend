@@ -693,7 +693,8 @@ exports.getAllPublishByUser = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
@@ -1081,6 +1082,7 @@ exports.getAllRequestedByUser = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
+      'device_id', u.device_id,
       'profile_uri', u.profile_uri
     ) AS user_info,
     JSON_BUILD_OBJECT(

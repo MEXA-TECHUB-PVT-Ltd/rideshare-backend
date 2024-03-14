@@ -4,6 +4,6 @@ const router = express.Router();
 const controller = require("../../controllers/payments/payments");
 
 router.post("/pay", controller.pay);
-router.post("/paypal-webhook", controller.paypalWebhook);
+router.all("/paypal-webhook", controller.paypalWebhook);
 
 module.exports = router;
