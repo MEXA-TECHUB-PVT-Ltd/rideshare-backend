@@ -1,7 +1,7 @@
 const { createRecord, updateRecord } = require("../../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../../utils/dbValidations");
 
-exports.saveJoinRideDetailsToDB = async (join_ride_details) => {
+exports.saveJoinRideDetailsToDB = async (join_ride_details, type) => {
   const data = {
     user_id: join_ride_details.joiner_id,
     ride_id: join_ride_details.ride_id,
@@ -12,7 +12,12 @@ exports.saveJoinRideDetailsToDB = async (join_ride_details) => {
     total_distance: join_ride_details.total_distance,
     pickup_time: join_ride_details.pickup_time,
     no_seats: join_ride_details.no_seats,
+    status: "accepted",
+    payment_type: type
   };
+  if (type === "cash") {
+    data["payment_status"] = true;
+  }
   try {
     return await createRecord("ride_joiners", data, []);
   } catch (error) {
@@ -39,12 +44,21 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     return { success: false, message: "Invalid ride join or ride IDs." };
   }
 
+  let rideJoinerUserId;
+
   try {
     // Assuming the function updateRecord updates a record, and createRecord creates a new record in the database
-    await updateRecord("ride_joiners", { payment_status: true }, [], {
-      column: "id",
-      value: rjId,
-    });
+    const updateRideJoiner = await updateRecord(
+      "ride_joiners",
+      { payment_status: true },
+      [],
+      {
+        column: "id",
+        value: rjId,
+      }
+    );
+
+    rideJoinerUserId = updateRideJoiner.user_id;
 
     const ride = await checkUserExists("rides", "id", rId);
     if (ride.rowCount === 0)
@@ -73,7 +87,7 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     // Record the transaction in the transaction history
     await createRecord("transaction_history", {
       rider_id,
-      joiner_id: rjId,
+      joiner_id: rideJoinerUserId,
       amount: {
         total: transactionAmount,
         currency: "USD",

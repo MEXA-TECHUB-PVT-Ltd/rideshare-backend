@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS ride_joiners(
   drop_status BOOLEAN DEFAULT FALSE,
   payment_status BOOLEAN DEFAULT FALSE,
   -- if true user in ride joiners
+  payment_type TEXT DEFAULT "paypal",
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -294,6 +295,7 @@ CREATE TABLE IF NOT EXISTS app_link(
 );
 CREATE TABLE IF NOT EXISTS transaction_history(
   id SERIAL PRIMARY KEY,
+  ride_id INT NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
   rider_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   joiner_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   amount jsonb,
