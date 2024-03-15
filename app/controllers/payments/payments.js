@@ -24,7 +24,7 @@ exports.pay = async (req, res) => {
         status: "success",
         message: "Ride joined successfully",
         result: saveJoinRideDetails,
-      });
+      }); 
     } else {
       const {
         items = [
