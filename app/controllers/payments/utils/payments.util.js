@@ -1,29 +1,6 @@
 const { createRecord, updateRecord } = require("../../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../../utils/dbValidations");
-
-exports.saveJoinRideDetailsToDB = async (join_ride_details, type) => {
-  const data = {
-    user_id: join_ride_details.joiner_id,
-    ride_id: join_ride_details.ride_id,
-    price_offer: join_ride_details.price_offer,
-    price_per_seat: join_ride_details.price_per_seat,
-    pickup_location: join_ride_details.pickup_location,
-    drop_off_location: join_ride_details.drop_off_location,
-    total_distance: join_ride_details.total_distance,
-    pickup_time: join_ride_details.pickup_time,
-    no_seats: join_ride_details.no_seats,
-    status: "accepted",
-    payment_type: type
-  };
-  if (type === "cash") {
-    data["payment_status"] = true;
-  }
-  try {
-    return await createRecord("ride_joiners", data, []);
-  } catch (error) {
-    throw error;
-  }
-};
+const { saveJoinRideDetailsToDB } = require("../../../utils/paymentHelper");
 
 /**
  * update the join ride details for payment status true
@@ -36,9 +13,8 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     return { success: false, message: "Invalid payment details or IDs." };
   }
 
-  const adminTaxRate = 0.05; // 5% tax rate
+  const adminTaxRate = 0.05;
 
-  // Parsing IDs and checking for validity
   const [rjId, rId] = ids.split(",").map((id) => parseInt(id, 10));
   if (isNaN(rjId) || isNaN(rId)) {
     return { success: false, message: "Invalid ride join or ride IDs." };
@@ -47,7 +23,6 @@ exports.paymentCreated = async (paymentDetails, ids) => {
   let rideJoinerUserId;
 
   try {
-    // Assuming the function updateRecord updates a record, and createRecord creates a new record in the database
     const updateRideJoiner = await updateRecord(
       "ride_joiners",
       { payment_status: true },
@@ -65,6 +40,7 @@ exports.paymentCreated = async (paymentDetails, ids) => {
       return { success: false, message: "Ride not found." };
 
     const rider_id = ride.rows[0].user_id;
+    const ride_id = ride.rows[0].id;
     const transactionAmount = parseFloat(
       paymentDetails.resource.transactions[0].amount.total
     );
@@ -74,18 +50,16 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     const adminTax = transactionAmount * adminTaxRate;
     const netAmountToRider = transactionAmount - adminTax;
 
-    // Update the rider's wallet
     await manageWallet(rider_id, netAmountToRider);
 
-    // Update the admin's wallet
     const admin = await checkUserExists("users", "role", "admin");
     if (ride.rowCount === 0)
       return { success: false, message: "Ride not found." };
-    const adminId = admin.rows[0].id; // Assuming you have a way to identify the admin's user_id or wallet_id
-    await manageWallet(adminId, adminTax, true); // The 'true' flag indicates this is for the admin
+    const adminId = admin.rows[0].id;
+    await manageWallet(adminId, adminTax, true);
 
-    // Record the transaction in the transaction history
     await createRecord("transaction_history", {
+      ride_id,
       rider_id,
       joiner_id: rideJoinerUserId,
       amount: {
@@ -94,6 +68,10 @@ exports.paymentCreated = async (paymentDetails, ids) => {
         admin_tax: adminTax,
       },
       description: paymentDetails.resource.transactions[0].description,
+    });
+    await createRecord("admin_transaction_history", {
+      ride_id,
+      amount: adminTax,
     });
 
     return {
@@ -110,20 +88,75 @@ exports.paymentCreated = async (paymentDetails, ids) => {
 };
 
 async function manageWallet(userId, amount, isAdmin = false) {
-  const walletTable = isAdmin ? "admin_wallet" : "wallet"; // Choose the correct table
-  // Attempt to find the existing wallet by user_id for both admin and users
+  const walletTable = isAdmin ? "admin_wallet" : "wallet";
   const existingWallet = await checkUserExists(walletTable, "user_id", userId);
 
   if (existingWallet.rowCount > 0) {
-    // Wallet exists, so update the balance
     const currentBalance = parseFloat(existingWallet.rows[0].balance);
     await updateRecord(walletTable, { balance: currentBalance + amount }, [], {
       column: "user_id",
       value: userId,
     });
   } else {
-    // No wallet exists, so create a new one
-    // This branch now handles both admin and user wallets, given both have the same structure
     await createRecord(walletTable, { user_id: userId, balance: amount }, []);
   }
 }
+
+/**
+ * pay with wallet
+ */
+
+exports.payWithWallet = async (rideAmount, joinRideDetails, paymentType) => {
+  try {
+    const saveJoinRideDetails = await saveJoinRideDetailsToDB(joinRideDetails);
+    const rideJoinId = saveJoinRideDetails.data.id;
+    const joinerId = saveJoinRideDetails.data.user_id;
+    const rideId = saveJoinRideDetails.data.ride_id;
+    const existingWallet = await checkUserExists("wallet", "user_id", joinerId);
+    const existingRides = await checkUserExists("rides", "id", rideId);
+    const parseRideAmount = parseFloat(rideAmount);
+    const parseBalance = parseFloat(existingWallet.rows[0].balance);
+    const adminTaxRate = 0.05;
+    const adminTax = parseRideAmount * adminTaxRate;
+
+    if (parseRideAmount > parseBalance) {
+      // insufficient balance to pay for a ride
+      return {
+        success: false,
+        message: "Insufficient balance to pay for a ride",
+      };
+    } else {
+      const takePayments = parseBalance - parseRideAmount;
+      await updateRecord("wallet", { balance: takePayments }, [], {
+        column: "user_id",
+        value: joinerId,
+      });
+      await updateRecord("ride_joiners", { payment_status: true }, [], {
+        column: "id",
+        value: rideJoinId,
+      });
+      await createRecord("transaction_history", {
+        ride_id: rideId,
+        rider_id: existingRides.rows[0].user_id,
+        joiner_id: joinerId,
+        amount: {
+          total: parseRideAmount,
+        },
+        status: "outgoing",
+      });
+      await createRecord("admin_transaction_history", {
+        ride_id: rideId,
+        amount: adminTax,
+      });
+      return {
+        success: true,
+        data: "Your transaction has been successfully processed!",
+      };
+    }
+    // return existingWallet.rows[0];
+  } catch (error) {
+    throw error;
+  }
+};
+
+exports.module = { saveJoinRideDetailsToDB };
