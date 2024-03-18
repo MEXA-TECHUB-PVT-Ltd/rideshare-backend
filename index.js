@@ -35,5 +35,8 @@ setupRideEvents();
 app.get("/payment-success", (req, res) => {
   res.render(path.join(__dirname, "app", "views", "payment-success.ejs"));
 });
+app.get("/payment-cancel", (req, res) => {
+  res.render(path.join(__dirname, "app", "views", "payment-cancel.ejs"));
+});
 
 server.listen(PORT, () => console.log(`App is listening on ${PORT}`));
