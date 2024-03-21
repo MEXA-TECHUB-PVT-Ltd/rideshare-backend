@@ -1,4 +1,4 @@
-const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema, bankDetailSchema, updateBankDetailSchema, complaintSchema, updateComplaintSchema, updatePreferencesSchema, preferencesSchema, delPreferencesSchema, appLinkSchema, updateInsSchema } = require("../lib/validation.dto");
+const { createUsersSchema, getAllUsersSchema, usersSearchValidationSchema, updateUsersSchema, signInSchema, forgotPasswordSchema, resetPasswordSchema, updatePasswordSchema, updateBlockStatusSchema, deactivateStatusSchema, vehicleDetailsSchema, updateVehicleDetailsSchema, createCautionSchema, updateCautionSchema, createPRSchema, updatePRSchema, updateDRSchema, createDRSchema, createCarColSchema, updateCarColSchema, publishRidesSchema, createVTSchema, updateVTSchema, searchNotificationsSchema, updateSearchNotificationsSchema, verifyCodeSchema, favRidersSchema, updateFavRidersSchema, contactSchema, updateContactSchema, updateStatusContactSchema, notificationTypesSchema, updateNotificationTypesSchema, joinRidesSchema, updateStatusSchema, startRideSchema, ratingSchema, bankDetailSchema, updateBankDetailSchema, complaintSchema, updateComplaintSchema, updatePreferencesSchema, preferencesSchema, delPreferencesSchema, appLinkSchema, updateInsSchema, driverVerificationRequestSchema, driverVerificationUpdateRequestSchema, verifyDriverSchema } = require("../lib/validation.dto");
 
 
 //  ?? user module
@@ -753,6 +753,57 @@ exports.validateUpdatePreferences = (req, res, next) => {
 // app link
 exports.validateAppLink = (req, res, next) => {
   const { error } = appLinkSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+// validateDriverVerification
+exports.validateDriverVerification = (req, res, next) => {
+  const { error } = driverVerificationRequestSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+exports.validateUpdateDriverVerification = (req, res, next) => {
+  const { error } = driverVerificationUpdateRequestSchema.validate(req.body);
+
+  if (error) {
+    const errorMessage = error.details
+      .map((detail) => detail.message)
+      .join(", ");
+    return res.status(400).json({
+      status: false,
+      message: "Validation error",
+      details: errorMessage,
+    });
+  }
+
+  next();
+};
+
+// verify driver
+exports.validateVerifyDriver = (req, res, next) => {
+  const { error } = verifyDriverSchema.validate(req.body);
 
   if (error) {
     const errorMessage = error.details

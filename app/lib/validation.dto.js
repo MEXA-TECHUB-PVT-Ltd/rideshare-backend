@@ -36,6 +36,10 @@ exports.updateInsSchema = Joi.object({
   user_id: Joi.number().required(),
   status: Joi.string().required().valid("contacted", "pending"),
 });
+exports.verifyDriverSchema = Joi.object({
+  user_id: Joi.number().required(),
+  is_verified_driver: Joi.boolean().required(),
+});
 
 exports.delPreferencesSchema = Joi.object({
   user_id: Joi.number().required(),
@@ -85,6 +89,7 @@ exports.getAllUsersSchema = Joi.object({
   sortField: Joi.string().valid("id", "name", "created_at"),
   sortOrder: Joi.string().valid("asc", "desc", "created_at"),
   query: Joi.string(),
+  is_verified_driver: Joi.string(),
 });
 
 // vehicles_details
@@ -352,7 +357,22 @@ exports.appLinkSchema = Joi.object({
     }),
 });
 
+// driver_verification_request
 
+exports.driverVerificationRequestSchema = Joi.object({
+  user_id: Joi.number().integer().required(),
+  license_number: Joi.string().required(),
+  expiry_date: Joi.date().iso().greater("now").required(),
+  front_image: Joi.string().required(),
+  back_image: Joi.string().required(),
+});
+exports.driverVerificationUpdateRequestSchema = Joi.object({
+  id: Joi.number().integer().required(),
+  license_number: Joi.string().optional(),
+  expiry_date: Joi.date().iso().greater("now").optional(),
+  front_image: Joi.string().optional(),
+  back_image: Joi.string().optional(),
+});
 
 exports.validateFile = (file) => {
   if (!file) {

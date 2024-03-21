@@ -57,6 +57,13 @@ exports.signupEmailTemplatePath = path.join(
   "signup.ejs"
 );
 
+exports.driverVerEmailTemplatePath = path.join(
+  __dirname,
+  "..",
+  "templates",
+  "driverVerification.ejs"
+);
+
 exports.verificationDataForEjs = (email, otp, year) => {
   return {
     email: email,
@@ -78,6 +85,15 @@ exports.rideDataForEjs = (email, year, date) => {
     year,
     date,
     base_url: process.env.CLOUDINARY_URL,
+  };
+};
+exports.driverVerificationDataForEjs = (email, year, date, license_number, expiry_date) => {
+  return {
+    email,
+    year,
+    date,
+    license_number,
+    expiry_date,
   };
 };
 exports.rideNotifyDataForEjs = (
