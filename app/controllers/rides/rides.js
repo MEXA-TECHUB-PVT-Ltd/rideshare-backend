@@ -8,6 +8,7 @@ const {
   getSingle,
   updateRecord,
   getAll,
+  deleteSingle,
 } = require("../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../utils/dbValidations");
 const { notifyUsersForNewRide } = require("../../utils/notifyEmailOnNewRide");
@@ -612,7 +613,8 @@ exports.getRideJoiners = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'about', u.about,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'id', rd.id,
@@ -811,7 +813,7 @@ LEFT JOIN LATERAL (
 };
 
 exports.getAllRideByStatus = async (req, res) => {
-  const { status } = req.params;
+  const { status } = req.query;
   const user_id = parseInt(req.params.user_id, 10);
 
   const join = `
@@ -906,7 +908,8 @@ exports.getAllRequestedRides = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
       'id', rd.id,
@@ -985,7 +988,8 @@ exports.getAllRequestedByRides = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
     'id', rd.id,
@@ -1083,7 +1087,8 @@ exports.getAllRequestedByUser = async (req, res) => {
       'email', u.email,
       'gender', u.gender,
       'device_id', u.device_id,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'device_id', u.device_id
     ) AS user_info,
     JSON_BUILD_OBJECT(
     'id', rd.id,
@@ -1152,3 +1157,6 @@ exports.getAllRequestedByUser = async (req, res) => {
     joinFields
   );
 };
+
+
+exports.delete = async (req, res) => deleteSingle(req, res, "rides");

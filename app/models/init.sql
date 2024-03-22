@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS users(
   deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
   facebook_access_token TEXT,
   is_deleted BOOLEAN DEFAULT FALSE,
+  is_verified_driver BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -295,9 +296,9 @@ CREATE TABLE IF NOT EXISTS app_link(
 );
 CREATE TABLE IF NOT EXISTS transaction_history(
   id SERIAL PRIMARY KEY,
-  ride_id INT  REFERENCES rides(id) ON DELETE CASCADE,
-  rider_id INT  REFERENCES users(id) ON DELETE CASCADE,
-  joiner_id INT  REFERENCES users(id) ON DELETE CASCADE,
+  ride_id INT REFERENCES rides(id) ON DELETE CASCADE,
+  rider_id INT REFERENCES users(id) ON DELETE CASCADE,
+  joiner_id INT REFERENCES users(id) ON DELETE CASCADE,
   amount jsonb,
   -- object { total: 100.00, currency: 'USD' }
   description TEXT,
@@ -309,26 +310,49 @@ CREATE TABLE IF NOT EXISTS transaction_history(
 );
 CREATE TABLE IF NOT EXISTS wallet(
   id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   balance DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS admin_wallet (
   id SERIAL PRIMARY KEY,
-  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   balance DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS admin_transaction_history (
   id SERIAL PRIMARY KEY,
   ride_id INT REFERENCES rides(id) ON DELETE CASCADE,
-  amount DECIMAL(10,2), 
-  status VARCHAR(255) DEFAULT 'incoming', 
+  amount DECIMAL(10, 2),
+  status VARCHAR(255) DEFAULT 'incoming',
   withdrawal BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
+CREATE TABLE IF NOT EXISTS driver_verification_request(
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  license_number VARCHAR(255) NOT NULL,
+  expiry_date DATE NOT NULL,
+  front_image TEXT NOT NULL,
+  back_image TEXT NOT NULL,
+  is_expire BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+--  *** Triggers 
+CREATE OR REPLACE FUNCTION fn_update_user_verification_status() RETURNS TRIGGER AS $$ BEGIN IF NEW.is_expire = TRUE THEN -- Update the is_verified_driver status to false for the related user
+UPDATE users
+SET is_verified_driver = FALSE
+WHERE id = NEW.user_id
+  AND is_verified_driver = TRUE;
+END IF;
+RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER trg_update_verification_status
+AFTER
+UPDATE OF is_expire ON driver_verification_request FOR EACH ROW
+  WHEN (NEW.is_expire = TRUE) EXECUTE FUNCTION fn_update_user_verification_status();

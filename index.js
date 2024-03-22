@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const cron = require("node-cron");
 const cors = require("cors");
 const path = require("path");
 const ejs = require("ejs");
@@ -10,6 +11,7 @@ require("./app/config/db.config");
 const api = require("./app/routes/api");
 const { setupSocket } = require("./app/config/socketSetup");
 const setupRideEvents = require("./app/utils/rideEvents");
+const { updateExpiredVerificationRequests } = require("./app/utils/corn");
 
 const app = express();
 const server = http.createServer(app);
@@ -37,6 +39,10 @@ app.get("/payment-success", (req, res) => {
 });
 app.get("/payment-cancel", (req, res) => {
   res.render(path.join(__dirname, "app", "views", "payment-cancel.ejs"));
+});
+cron.schedule("0 0 * * *", updateExpiredVerificationRequests, {
+  scheduled: true,
+  timezone: "UTC",
 });
 
 server.listen(PORT, () => console.log(`App is listening on ${PORT}`));

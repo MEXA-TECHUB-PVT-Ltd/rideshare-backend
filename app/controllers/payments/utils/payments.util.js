@@ -20,6 +20,8 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     return { success: false, message: "Invalid ride join or ride IDs." };
   }
 
+  console.log({ code: "IDs", rjId, rId });
+
   let rideJoinerUserId;
 
   try {
@@ -34,13 +36,14 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     );
 
     rideJoinerUserId = updateRideJoiner.user_id;
-
+    
     const ride = await checkUserExists("rides", "id", rId);
     if (ride.rowCount === 0)
       return { success: false, message: "Ride not found." };
 
     const rider_id = ride.rows[0].user_id;
     const ride_id = ride.rows[0].id;
+    console.log("rideJoinerUserId", rideJoinerUserId, rider_id);
     const transactionAmount = parseFloat(
       paymentDetails.resource.transactions[0].amount.total
     );
@@ -51,6 +54,8 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     const netAmountToRider = transactionAmount - adminTax;
 
     await manageWallet(rider_id, netAmountToRider);
+
+    console.log("rider_id", rider_id);
 
     const admin = await checkUserExists("users", "role", "admin");
     if (ride.rowCount === 0)

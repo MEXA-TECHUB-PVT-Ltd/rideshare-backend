@@ -344,6 +344,51 @@ exports.update = async (req, res) => {
   }
 };
 
+
+exports.verifyDriver = async (req, res) => { 
+    const { user_id, is_verified_driver } = req.body;
+    try {
+      const userExists = await checkUserExists("users", "id", user_id);
+      if (userExists.rowCount === 0) {
+        return responseHandler(res, 404, false, "User not found");
+      }
+
+      const userData = {
+        is_verified_driver: is_verified_driver,
+      };
+
+      const result = await updateRecord(
+        "users",
+        userData,
+        ["password", "otp", "admin_name"],
+        {
+          column: "id",
+          value: user_id,
+        }
+      );
+
+      if (result.rowCount === 0) {
+        return responseHandler(
+          res,
+          500,
+          false,
+          "Error while retrieving updated user data"
+        );
+      }
+
+      return responseHandler(
+        res,
+        200,
+        true,
+        "User status updated successfully!",
+        result
+      );
+    } catch (error) {
+      console.error(error);
+      return responseHandler(res, 500, false, "Internal Server Error");
+    }
+}
+
 exports.updateInsuranceStatus = async (req, res) => {
   const { user_id, status } = req.body;
   try {
@@ -685,6 +730,7 @@ exports.getAll = async (req, res) => getAll(req, res, "users");
 exports.getAllBlockUsers = async (req, res) =>
   getAll(req, res, "users", "created_at", "*", { block_status: true });
 
+
 exports.getAllUserByInsuranceStatus = async (req, res) => {
   const { insurance_status } = req.params;
 
@@ -696,6 +742,7 @@ exports.getAllUserByInsuranceStatus = async (req, res) => {
 };
 
 exports.getAllUsersWithDetails = async (req, res) => {
+  const is_verified_driver = req.query.is_verified_driver;
   const fields = `
   users.*,
 
@@ -839,7 +886,9 @@ exports.getAllUsersWithDetails = async (req, res) => {
 `;
 
   const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
-  let whereClause = "WHERE users.deleted_at IS NULL AND role = 'user'";
+  let whereClause = is_verified_driver
+    ? `WHERE users.deleted_at IS NULL AND role = 'user' AND is_verified_driver = ${is_verified_driver}`
+    : `WHERE users.deleted_at IS NULL AND role = 'user'`;
 
   return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };

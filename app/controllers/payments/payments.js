@@ -70,8 +70,8 @@ exports.pay = async (req, res) => {
         },
         description = "This is the payment description.",
         redirect_urls = {
-          return_url: "https://rideshare-be.mtechub.com//payment-success",
-          cancel_url: "https://rideshare-be.mtechub.com//payment-cancel",
+          return_url: "https://rideshare-be.mtechub.com/payment-success",
+          cancel_url: "https://rideshare-be.mtechub.com/payment-cancel",
         },
       } = payment_details;
 
