@@ -170,3 +170,35 @@ exports.get = async (req, res) => {
 
   return getSingle(req, res, tableName, "id", fields);
 };
+
+
+
+exports.getByUser = async (req, res) => {
+  const user_id = parseInt(req.params.user_id, 10);
+    const fields = `
+    drv.*,
+    json_build_object(
+      'id', u.id,
+      'first_name', u.first_name,
+      'last_name', u.last_name,
+      'email', u.email,
+      'profile_uri', u.profile_uri,
+      'is_verified_driver', u.is_verified_driver
+    ) as user_details`;
+
+    // JOIN clause to get user details
+    const join = `
+    LEFT JOIN users u ON drv.user_id = u.id`;
+  const additionalFilters = {
+    "drv.user_id": user_id,
+  };
+  getAll(
+    req,
+    res,
+    "driver_verification_request drv",
+    "drv.created_at",
+    fields,
+    additionalFilters,
+    join
+  );
+};

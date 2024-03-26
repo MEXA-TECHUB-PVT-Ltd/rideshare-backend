@@ -10,5 +10,6 @@ router.post("/create", validateDriverVerification, controller.create);
 router.patch("/update", validateUpdateDriverVerification, controller.update);
 router.get("/getAll", queryValidation, controller.getAll);
 router.get("/get/:id", queryValidation, controller.get);
+router.get("/getByUser/:user_id", queryValidation, controller.getByUser);
 
 module.exports = router;
