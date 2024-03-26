@@ -96,13 +96,13 @@ exports.getAllUsersSchema = Joi.object({
 
 exports.vehicleDetailsSchema = Joi.object({
   user_id: Joi.number().required(),
-  license_plate_no: Joi.string().required(),
+  license_plate_no: Joi.string().optional(),
   vehicle_brand: Joi.object().required(),
   vehicle_model: Joi.object().required(),
-  registration_no: Joi.string().required(),
-  driving_license_no: Joi.string().required(),
-  license_expiry_date: Joi.date().required(),
-  personal_insurance: Joi.boolean().required(),
+  registration_no: Joi.string().optional(),
+  driving_license_no: Joi.string().optional(),
+  license_expiry_date: Joi.date().optional(),
+  personal_insurance: Joi.boolean().optional(),
   vehicle_type_id: Joi.number().required(),
   vehicle_color_id: Joi.number().required(),
 });
