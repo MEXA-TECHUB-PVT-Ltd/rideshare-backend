@@ -210,6 +210,11 @@ exports.search = async (req, res) => {
     const allRidesQuery = `      
 SELECT 
   rides.*,
+                JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
   JSON_BUILD_OBJECT(
     'license_plate_no', vehicles_details.license_plate_no,
     'vehicle_brand', vehicles_details.vehicle_brand,
@@ -235,6 +240,8 @@ JOIN
   vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
 JOIN 
   users ON rides.user_id = users.id
+      JOIN driver_verification_request dvr ON users.id = dvr.user_id
+
 WHERE 
   users.deleted_at IS NULL AND (rides.ride_status IS DISTINCT FROM 'canceled' OR rides.ride_status IS NULL);
 `;
@@ -314,6 +321,7 @@ exports.get = async (req, res) => {
   JOIN vehicle_types ON vehicles_details.vehicle_type_id = vehicle_types.id
   JOIN vehicle_colors ON vehicles_details.vehicle_color_id = vehicle_colors.id
   JOIN users ON rides.user_id = users.id AND users.deleted_at IS NULL
+    JOIN driver_verification_request dvr ON users.id = dvr.user_id
   LEFT JOIN rides AS return_rides ON rides.return_ride_id = return_rides.id
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
@@ -328,6 +336,11 @@ exports.get = async (req, res) => {
 
   const joinFields = `
   rides.*,
+                JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
   JSON_BUILD_OBJECT(
     'license_plate_no', vehicles_details.license_plate_no,
     'vehicle_brand', vehicles_details.vehicle_brand,
@@ -591,6 +604,7 @@ exports.getRideJoiners = async (req, res) => {
   const join = `
   JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
   JOIN rides rd ON rj.ride_id = rd.id
+    JOIN driver_verification_request dvr ON u.id = dvr.user_id
   JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
   JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
   JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -614,8 +628,14 @@ exports.getRideJoiners = async (req, res) => {
       'email', u.email,
       'about', u.about,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+                  JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
       'id', rd.id,
       'pickup_address', rd.pickup_address,
@@ -674,6 +694,7 @@ exports.getAllPublishByUser = async (req, res) => {
 
   const join = `
     JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
+    JOIN driver_verification_request dvr ON u.id = dvr.user_id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -696,8 +717,14 @@ exports.getAllPublishByUser = async (req, res) => {
       'email', u.email,
       'gender', u.gender,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+                  JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
       'vehicle_brand', vd.vehicle_brand,
@@ -738,6 +765,7 @@ exports.getAllJoinedByUser = async (req, res) => {
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     JOIN rides rd ON rj.ride_id = rd.id
+    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -765,8 +793,14 @@ LEFT JOIN LATERAL (
       'deactivated', u.deactivated,
       'block_status', u.block_status,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+              JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
       'rides', rd.*
     ) AS ride_details,
@@ -818,6 +852,7 @@ exports.getAllRideByStatus = async (req, res) => {
 
   const join = `
     JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
+    JOIN driver_verification_request dvr ON r.user_id = dvr.user_id
     JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -839,8 +874,14 @@ exports.getAllRideByStatus = async (req, res) => {
       'last_name', u.last_name,
       'email', u.email,
       'gender', u.gender,
-      'profile_uri', u.profile_uri
+      'profile_uri', u.profile_uri,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+              JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
       'license_plate_no', vd.license_plate_no,
       'vehicle_brand', vd.vehicle_brand,
@@ -887,6 +928,7 @@ exports.getAllRequestedRides = async (req, res) => {
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     JOIN rides rd ON rj.ride_id = rd.id
+    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -909,8 +951,14 @@ exports.getAllRequestedRides = async (req, res) => {
       'email', u.email,
       'gender', u.gender,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+          JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
       'id', rd.id,
       'pickup_address', rd.pickup_address,
@@ -967,6 +1015,7 @@ exports.getAllRequestedByRides = async (req, res) => {
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     JOIN rides rd ON rj.ride_id = rd.id
+    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -989,8 +1038,14 @@ exports.getAllRequestedByRides = async (req, res) => {
       'email', u.email,
       'gender', u.gender,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+          JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
     'id', rd.id,
     'user_id', rd.user_id,
@@ -1065,6 +1120,7 @@ exports.getAllRequestedByUser = async (req, res) => {
   const join = `
     JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
     JOIN rides rd ON rj.ride_id = rd.id
+    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
     JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
     JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
     JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
@@ -1088,8 +1144,14 @@ exports.getAllRequestedByUser = async (req, res) => {
       'gender', u.gender,
       'device_id', u.device_id,
       'profile_uri', u.profile_uri,
-      'device_id', u.device_id
+      'device_id', u.device_id,
+      'is_verified_driver', u.is_verified_driver
     ) AS user_info,
+      JSON_BUILD_OBJECT(
+      'id', dvr.id,
+      'license_number', dvr.license_number,
+      'user_id', dvr.user_id
+    ) AS dvr,
     JSON_BUILD_OBJECT(
     'id', rd.id,
     'user_id', rd.user_id,
@@ -1157,6 +1219,5 @@ exports.getAllRequestedByUser = async (req, res) => {
     joinFields
   );
 };
-
 
 exports.delete = async (req, res) => deleteSingle(req, res, "rides");

@@ -886,9 +886,12 @@ exports.getAllUsersWithDetails = async (req, res) => {
 `;
 
   const join = ``; // No need for a JOIN clause since all details are fetched via subqueries
-  let whereClause = is_verified_driver
-    ? `WHERE users.deleted_at IS NULL AND role = 'user' AND is_verified_driver = ${is_verified_driver}`
-    : `WHERE users.deleted_at IS NULL AND role = 'user'`;
+
+  console.log(is_verified_driver);
+  let whereClause =
+    is_verified_driver === true
+      ? `WHERE users.deleted_at IS NULL AND role = 'user' AND is_verified_driver = true`
+      : `WHERE users.deleted_at IS NULL AND role = 'user'`;
 
   return getAll(req, res, "users", "created_at", fields, {}, whereClause);
 };
