@@ -24,18 +24,38 @@ exports.create = async (req, res) => {
     expiry_date,
     front_image,
     back_image,
+    is_expire: false,
   };
+
+  let result;
 
   try {
     const userExists = await checkUserExists("users", "id", user_id);
+    const driverVerificationRequestExists = await checkUserExists(
+      "driver_verification_request",
+      "user_id",
+      user_id
+    );
     if (userExists.rowCount === 0) {
       return responseHandler(res, 404, false, "User not found ");
     }
-    const result = await createRecord(
-      "driver_verification_request",
-      driverVerificationData,
-      []
-    );
+    if (driverVerificationRequestExists.rowCount === 0) {
+      result = await createRecord(
+        "driver_verification_request",
+        driverVerificationData,
+        []
+      );
+    } else {
+      result = await updateRecord(
+        "driver_verification_request",
+        driverVerificationData,
+        [],
+        {
+          column: "user_id",
+          value: user_id,
+        }
+      );
+    }
 
     if (result.error) {
       return responseHandler(res, result.status, false, result.message);
@@ -69,19 +89,21 @@ exports.create = async (req, res) => {
     } catch (sendEmailError) {
       console.error(sendEmailError);
     }
-
+    const data = result.data || result;
     return responseHandler(
       res,
       201,
       true,
-      "rating added successfully!",
-      result.data
+      "Request submitted successfully!",
+      data
     );
   } catch (error) {
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
   }
 };
+
+// when update the license details is_expire must be false;
 
 exports.update = async (req, res) => {
   const { id, license_number, expiry_date, front_image, back_image } = req.body;
@@ -94,7 +116,7 @@ exports.update = async (req, res) => {
     if (userExists.rowCount === 0) {
       return responseHandler(res, 404, false, "Record not found");
     }
-    const driverVerificationData = {};
+    const driverVerificationData = { is_expire: false };
 
     if (license_number !== undefined)
       driverVerificationData.license_number = license_number;
@@ -171,11 +193,33 @@ exports.get = async (req, res) => {
   return getSingle(req, res, tableName, "id", fields);
 };
 
-
+exports.getOneByUser = async (req, res) => {
+  const user_id = req.params.userId;
+  try {
+    const driverVerificationRequestExists = await checkUserExists(
+      "driver_verification_request",
+      "user_id",
+      user_id
+    );
+    if (driverVerificationRequestExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "Request not found for user ");
+    }
+    return responseHandler(
+      res,
+      200,
+      true,
+      "User status updated successfully!",
+      driverVerificationRequestExists.rows[0]
+    );
+  } catch (error) {
+    console.log(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
 
 exports.getByUser = async (req, res) => {
   const user_id = parseInt(req.params.user_id, 10);
-    const fields = `
+  const fields = `
     drv.*,
     json_build_object(
       'id', u.id,
@@ -186,8 +230,8 @@ exports.getByUser = async (req, res) => {
       'is_verified_driver', u.is_verified_driver
     ) as user_details`;
 
-    // JOIN clause to get user details
-    const join = `
+  // JOIN clause to get user details
+  const join = `
     LEFT JOIN users u ON drv.user_id = u.id`;
   const additionalFilters = {
     "drv.user_id": user_id,
