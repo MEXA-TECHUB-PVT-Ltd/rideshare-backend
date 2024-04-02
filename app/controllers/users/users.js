@@ -46,9 +46,9 @@ exports.create = async (req, res) => {
 
   try {
     const userAlreadyExists = await checkUserAlreadyExist(email);
-    // if (userAlreadyExists) {
-    //   return responseHandler(res, 409, false, "User already exists");
-    // }
+    if (userAlreadyExists) {
+      return responseHandler(res, 409, false, "User already exists");
+    }
 
     const defaultRole = role ? role : "user";
 
@@ -110,21 +110,26 @@ exports.create = async (req, res) => {
       );
 
       if (emailSent.success) {
-        responseHandler(
-          res,
-          201,
-          true,
-          "User created successfully! Please verify your email",
-          newUser
-        );
       } else {
         console.log("email hasn't been sent successfully");
         // responseHandler(res, 500, false, emailSent.message);
       }
     } catch (sendEmailError) {
       console.error(sendEmailError);
-      // responseHandler(res, 500, false, "Error sending verification email");
+      responseHandler(
+        res,
+        200,
+        true,
+        "User created but email has not been submitted"
+      );
     }
+    responseHandler(
+      res,
+      201,
+      true,
+      "User created successfully! Please verify your email",
+      newUser
+    );
   } catch (error) {
     console.error(error);
     return responseHandler(res, 500, false, "Internal Server Error");
@@ -210,6 +215,12 @@ exports.signIn = async (req, res) => {
       } else {
         console.log("Email hasn't been sent successfully");
         // Consider handling this case more gracefully in production
+        responseHandler(
+          res,
+          400,
+          false,
+          "We are facing issues while sending email, please try again in a few minutes"
+        );
       }
     } else {
       const payload = {
@@ -344,50 +355,49 @@ exports.update = async (req, res) => {
   }
 };
 
+exports.verifyDriver = async (req, res) => {
+  const { user_id, is_verified_driver } = req.body;
+  try {
+    const userExists = await checkUserExists("users", "id", user_id);
+    if (userExists.rowCount === 0) {
+      return responseHandler(res, 404, false, "User not found");
+    }
 
-exports.verifyDriver = async (req, res) => { 
-    const { user_id, is_verified_driver } = req.body;
-    try {
-      const userExists = await checkUserExists("users", "id", user_id);
-      if (userExists.rowCount === 0) {
-        return responseHandler(res, 404, false, "User not found");
+    const userData = {
+      is_verified_driver: is_verified_driver,
+    };
+
+    const result = await updateRecord(
+      "users",
+      userData,
+      ["password", "otp", "admin_name"],
+      {
+        column: "id",
+        value: user_id,
       }
+    );
 
-      const userData = {
-        is_verified_driver: is_verified_driver,
-      };
-
-      const result = await updateRecord(
-        "users",
-        userData,
-        ["password", "otp", "admin_name"],
-        {
-          column: "id",
-          value: user_id,
-        }
-      );
-
-      if (result.rowCount === 0) {
-        return responseHandler(
-          res,
-          500,
-          false,
-          "Error while retrieving updated user data"
-        );
-      }
-
+    if (result.rowCount === 0) {
       return responseHandler(
         res,
-        200,
-        true,
-        "User status updated successfully!",
-        result
+        500,
+        false,
+        "Error while retrieving updated user data"
       );
-    } catch (error) {
-      console.error(error);
-      return responseHandler(res, 500, false, "Internal Server Error");
     }
-}
+
+    return responseHandler(
+      res,
+      200,
+      true,
+      "User status updated successfully!",
+      result
+    );
+  } catch (error) {
+    console.error(error);
+    return responseHandler(res, 500, false, "Internal Server Error");
+  }
+};
 
 exports.updateInsuranceStatus = async (req, res) => {
   const { user_id, status } = req.body;
@@ -729,7 +739,6 @@ exports.getAll = async (req, res) => getAll(req, res, "users");
 
 exports.getAllBlockUsers = async (req, res) =>
   getAll(req, res, "users", "created_at", "*", { block_status: true });
-
 
 exports.getAllUserByInsuranceStatus = async (req, res) => {
   const { insurance_status } = req.params;
