@@ -1,8 +1,15 @@
 const nodemailer = require("nodemailer");
-const { EMAIL_USERNAME, EMAIL_PASSWORD } = require("../constants/constants");
+const {
+  EMAIL_USERNAME,
+  EMAIL_PASSWORD,
+  EMAIL_HOST,
+} = require("../constants/constants");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  // service: "gmail",
+  // port: 587,
+  // secure: false,
+  host: EMAIL_HOST,
   auth: {
     user: EMAIL_USERNAME,
     pass: EMAIL_PASSWORD,
@@ -32,8 +39,12 @@ const sendEmail = async (email, subject, htmlContent) => {
     console.log(err);
     return {
       success: false,
-      message: `Internal server error occurred`,
+      message: `Could not send email`,
     };
+    // return {
+    //   success: false,
+    //   message: `Internal server error occurred`,
+    // };
   }
 };
 
