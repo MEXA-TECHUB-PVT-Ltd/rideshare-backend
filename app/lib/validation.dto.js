@@ -103,6 +103,11 @@ exports.vehicleDetailsSchema = Joi.object({
   driving_license_no: Joi.string().optional(),
   license_expiry_date: Joi.date().optional(),
   personal_insurance: Joi.boolean().optional(),
+  insurance_image: Joi.when("personal_insurance", {
+    is: true,
+    then: Joi.string().required(),
+    otherwise: Joi.string().optional(),
+  }),
   vehicle_type_id: Joi.number().required(),
   vehicle_color_id: Joi.number().required(),
 });

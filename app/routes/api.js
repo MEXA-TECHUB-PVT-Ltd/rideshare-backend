@@ -23,6 +23,7 @@ const user_preferences = require("./user_preferences/user_preferences");
 const app_link = require("./app_link/app_link");
 const payments = require("./payments/payments");
 const driver_verification_request = require("./driver_verification_request/driver_verification_request");
+const errors = require("./errors/errors");
 
 router.use("/users", users);
 router.use("/vehicles_details", vehicles_details);
@@ -52,5 +53,6 @@ router.use("/user_preferences", user_preferences);
 router.use("/app_link", app_link);
 router.use("/payments", payments);
 router.use("/driver_verification_request", driver_verification_request);
+router.use("/error_logs", errors);
 
 module.exports = router;
