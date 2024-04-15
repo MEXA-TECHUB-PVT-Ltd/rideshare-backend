@@ -1,5 +1,9 @@
 const paypal = require("paypal-rest-sdk");
-const { paymentCreated, payWithWallet } = require("./utils/payments.util");
+const {
+  paymentCreated,
+  payWithWallet,
+  saveWithdrawLogs,
+} = require("./utils/payments.util");
 const { pool } = require("../../config/db.config");
 const { saveJoinRideDetailsToDB } = require("../../utils/paymentHelper");
 const API_TOKEN_REQ = "https://api.sandbox.paypal.com/v1/oauth2/token";
@@ -129,7 +133,7 @@ exports.paypalWebhook = async (req, res) => {
   try {
     const { body } = req;
 
-    let resultMessage = "Event received but not processed."; // Default message
+    let resultMessage = "Event received but not processed.";
 
     switch (body.event_type) {
       case "PAYMENTS.PAYMENT.CREATED":
@@ -209,6 +213,51 @@ exports.getTransactionHistory = async (req, res) => {
       .json({ success: false, message: "Internal server error." });
   }
 };
+
+
+exports.getAllTransactionHistory = async (req, res) => {
+
+  try {
+    // Combine queries to fetch transactions where the user is either the rider or the joiner
+    const query = `
+      SELECT 
+        th.*,
+        json_build_object(
+          'id', u.id,
+          'first_name', u.first_name,
+          'last_name', u.last_name,
+          'email', u.email
+        ) AS joiner_details
+      FROM transaction_history th
+      LEFT JOIN users u ON th.joiner_id = u.id
+      ORDER BY th.created_at DESC;`;
+
+    const result = await pool.query(query);
+    if (result.rows.length) {
+      return res.json({
+        success: true,
+        transactions: result.rows,
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No transactions found for the given user.",
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching transaction history: ", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error." });
+  }
+};
+
+
+
+
+
+
+
 exports.getAdminTransactionHistory = async (req, res) => {
   try {
     const query = `
@@ -325,13 +374,22 @@ exports.withdraw = async (req, res) => {
   const { user_id, amount, email } = req.body;
   try {
     const existingWallet = await checkUserExists("wallet", "user_id", user_id);
+    if (existingWallet.rowCount === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Wallet not found for this user." });
+    }
     const parseRideAmount = parseFloat(amount);
     const parseBalance = parseFloat(existingWallet.rows[0].balance);
     if (parseRideAmount > parseBalance) {
-      // insufficient balance to pay for a ride
+      await saveWithdrawLogs(user_id, email, amount, {
+        name: "INSUFFICIENT_FUNDS",
+        message: "Insufficient funds to complete the transaction.",
+      });
       return res.status(400).json({
         success: false,
-        message: "Insufficient balance to payout",
+        name: "INSUFFICIENT_FUNDS",
+        message: "Insufficient funds to payout",
       });
     } else {
       const takePayments = parseBalance - parseRideAmount;
@@ -394,16 +452,117 @@ exports.withdraw = async (req, res) => {
         status: "outgoing",
         withdrawal: true,
       });
-      // res.json(data);
       let PaypalWithdrawObject = data;
       return res.status(200).json({
         PaypalWithdrawObject: PaypalWithdrawObject,
         message: "Transaction history created successfully",
-        // data: userDataTransaction.rows[0],
       });
     }
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ success: false, message: error.message });
+    const paypalError = error?.response?.data;
+    if (paypalError) {
+      await saveWithdrawLogs(user_id, email, amount, {
+        name: paypalError.name,
+        message: paypalError.message,
+        details: paypalError.details || "No additional details available",
+      });
+      let clientMessage = "An error occurred during the transaction.";
+      if (paypalError.name === "INSUFFICIENT_FUNDS") {
+        clientMessage = "Insufficient funds to complete the transaction.";
+      } else if (
+        paypalError.name === "AUTHENTICATION_FAILURE" ||
+        paypalError.name === "NOT_AUTHORIZED"
+      ) {
+        clientMessage = "Authentication failed. Please check credentials.";
+      } else if (paypalError.name === "SERVICE_UNAVAILABLE") {
+        clientMessage =
+          "Payment service is temporarily unavailable. Please try again later.";
+      }
+
+      return res.status(500).json({ success: false, message: clientMessage });
+    }
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+exports.breakPaymentThroughWallet = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { userId, paymentAmount, rideId, riderId } = req.body;
+
+    await client.query("BEGIN"); // Start database transaction
+
+    // Function to ensure wallet exists or create it with an initial balance
+    async function ensureWallet(userId, initialBalance = 0) {
+      const wallet = await checkUserExists("wallet", "user_id", userId);
+      if (wallet.rowCount === 0) {
+        await createRecord("wallet", {
+          user_id: userId,
+          balance: initialBalance,
+        });
+        return initialBalance; // Return the initial balance for a new wallet
+      }
+      return parseFloat(wallet.rows[0].balance); // Return the current balance if wallet exists
+    }
+
+    // Ensure both user's and rider's wallets exist or create them
+    let userCurrentBalance = await ensureWallet(userId);
+    let riderCurrentBalance = await ensureWallet(riderId);
+
+    const payment = parseFloat(paymentAmount);
+    const newUserBalance = userCurrentBalance - payment;
+    const newRiderBalance = riderCurrentBalance + payment;
+
+    // Update user's wallet balance
+    await updateRecord("wallet", { balance: newUserBalance }, [], {
+      column: "user_id",
+      value: userId,
+    });
+
+    // Update rider's wallet balance
+    await updateRecord("wallet", { balance: newRiderBalance }, [], {
+      column: "user_id",
+      value: riderId,
+    });
+
+    // Log transaction for deduction from user's account
+    await createRecord(
+      "transaction_history",
+      {
+        ride_id: rideId,
+        rider_id: riderId,
+        joiner_id: userId,
+        amount: JSON.stringify({ total: payment, currency: "USD" }),
+        description: `Deduction from user's wallet for ride payment`,
+        status: "outgoing",
+        withdrawal: true,
+      },
+      client
+    );
+
+    // Log transaction for addition to rider's account
+    await createRecord("transaction_history", {
+      ride_id: rideId,
+      rider_id: riderId,
+      joiner_id: userId,
+      amount: JSON.stringify({ total: payment, currency: "USD" }),
+      description: `Addition to rider's wallet for ride payment`,
+      status: "incoming",
+      withdrawal: false,
+    });
+
+    await client.query("COMMIT"); // Commit the transaction
+    res.status(200).json({
+      success: true,
+      message: "Payment processed and transactions recorded successfully.",
+    });
+  } catch (error) {
+    await client.query("ROLLBACK"); // Roll back the transaction on error
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while processing the payment.",
+      error: error.message,
+    });
+  } finally {
+    client.release(); // Release the database client
   }
 };

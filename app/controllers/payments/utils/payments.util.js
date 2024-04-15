@@ -1,3 +1,4 @@
+const { pool } = require("../../../config/db.config");
 const { createRecord, updateRecord } = require("../../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../../utils/dbValidations");
 const { saveJoinRideDetailsToDB } = require("../../../utils/paymentHelper");
@@ -36,7 +37,7 @@ exports.paymentCreated = async (paymentDetails, ids) => {
     );
 
     rideJoinerUserId = updateRideJoiner.user_id;
-    
+
     const ride = await checkUserExists("rides", "id", rId);
     if (ride.rowCount === 0)
       return { success: false, message: "Ride not found." };
@@ -72,7 +73,8 @@ exports.paymentCreated = async (paymentDetails, ids) => {
         currency: "USD",
         admin_tax: adminTax,
       },
-      description: paymentDetails.resource.transactions[0].description,
+      description: "Payment with paypal",
+      adminTax: adminTax,
     });
     await createRecord("admin_transaction_history", {
       ride_id,
@@ -120,45 +122,73 @@ exports.payWithWallet = async (rideAmount, joinRideDetails, paymentType) => {
     const existingWallet = await checkUserExists("wallet", "user_id", joinerId);
     const existingRides = await checkUserExists("rides", "id", rideId);
     const parseRideAmount = parseFloat(rideAmount);
-    const parseBalance = parseFloat(existingWallet.rows[0].balance);
     const adminTaxRate = 0.05;
     const adminTax = parseRideAmount * adminTaxRate;
 
-    if (parseRideAmount > parseBalance) {
-      // insufficient balance to pay for a ride
-      return {
-        success: false,
-        message: "Insufficient balance to pay for a ride",
-      };
+    let walletBalance;
+
+    // Check if the wallet exists and assign current balance or set it to zero if no wallet exists
+    if (existingWallet.rowCount > 0) {
+      walletBalance = parseFloat(existingWallet.rows[0].balance);
     } else {
-      const takePayments = parseBalance - parseRideAmount;
-      await updateRecord("wallet", { balance: takePayments }, [], {
+      walletBalance = 0; // Initialize wallet balance as 0 if wallet doesn't exist
+    }
+
+    // Calculate new balance regardless of current balance
+    const newBalance = walletBalance - parseRideAmount;
+
+    // Update or create wallet with new balance
+    if (existingWallet.rowCount > 0) {
+      await updateRecord("wallet", { balance: newBalance }, [], {
         column: "user_id",
         value: joinerId,
       });
-      await updateRecord("ride_joiners", { payment_status: true }, [], {
-        column: "id",
-        value: rideJoinId,
+    } else {
+      await createRecord("wallet", {
+        user_id: joinerId,
+        balance: newBalance,
       });
-      await createRecord("transaction_history", {
-        ride_id: rideId,
-        rider_id: existingRides.rows[0].user_id,
-        joiner_id: joinerId,
-        amount: {
-          total: parseRideAmount,
-        },
-        status: "outgoing",
-      });
-      await createRecord("admin_transaction_history", {
-        ride_id: rideId,
-        amount: adminTax,
-      });
-      return {
-        success: true,
-        data: "Your transaction has been successfully processed!",
-      };
     }
-    // return existingWallet.rows[0];
+
+    // Update ride joiner's payment status
+    await updateRecord("ride_joiners", { payment_status: true }, [], {
+      column: "id",
+      value: rideJoinId,
+    });
+
+    // Log transaction history for rider
+    await createRecord("transaction_history", {
+      ride_id: rideId,
+      rider_id: existingRides.rows[0].user_id,
+      joiner_id: joinerId,
+      amount: { total: parseRideAmount },
+      status: "incoming",
+      description: "Payment through wallet!",
+      adminTax: adminTax
+    });
+
+    // Log admin transaction for the tax
+    await createRecord("admin_transaction_history", {
+      ride_id: rideId,
+      amount: adminTax,
+    });
+
+    return {
+      success: true,
+      data: "Your transaction has been successfully processed!",
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+exports.saveWithdrawLogs = async (userId, email, amount,  errors) => {
+  try {
+    await pool.query(
+      `INSERT INTO error_logs (user_id, email, amount, errors, type) VALUES ($1, $2, $3, $4, $5)`,
+      [userId, email, amount, errors, "WITHDRAW_ERROR_LOGS"]
+    );
   } catch (error) {
     throw error;
   }

@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS vehicles_details(
   driving_license_no TEXT,
   license_expiry_date TIMESTAMP WITH TIME ZONE,
   personal_insurance BOOLEAN DEFAULT FALSE,
+  insurance_image TEXT,
   vehicle_type_id INT REFERENCES vehicle_types(id) ON DELETE CASCADE,
   vehicle_color_id INT REFERENCES vehicle_colors(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -303,6 +304,7 @@ CREATE TABLE IF NOT EXISTS transaction_history(
   -- object { total: 100.00, currency: 'USD' }
   description TEXT,
   -- order description
+  adminTax DECIMAL(10, 2) NOT NULL DEFAULT '0.00',
   status VARCHAR(255) DEFAULT "incoming",
   withdrawal BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -339,6 +341,16 @@ CREATE TABLE IF NOT EXISTS driver_verification_request(
   front_image TEXT NOT NULL,
   back_image TEXT NOT NULL,
   is_expire BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS error_logs(
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  email VARCHAR(255),
+  amount DECIMAL(10, 2),
+  errors jsonb,
+  type VARCHAR(255) NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

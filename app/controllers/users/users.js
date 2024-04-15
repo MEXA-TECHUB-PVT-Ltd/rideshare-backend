@@ -1148,7 +1148,8 @@ exports.getUserWithDetails = async (req, res) => {
           'registration_no', vd.registration_no,
           'driving_license_no', vd.driving_license_no,
           'license_expiry_date', vd.license_expiry_date,
-          'personal_insurance', vd.personal_insurance
+          'personal_insurance', vd.personal_insurance,
+          'insurance_image', vd.insurance_image
         )
       )
       FROM vehicles_details vd

@@ -6,10 +6,10 @@ const {
 } = require("../constants/constants");
 
 const transporter = nodemailer.createTransport({
-  // service: "gmail",
+  service: "gmail",
   // port: 587,
   // secure: false,
-  host: EMAIL_HOST,
+  // host: EMAIL_HOST,
   auth: {
     user: EMAIL_USERNAME,
     pass: EMAIL_PASSWORD,

@@ -10,7 +10,6 @@ const {
 } = require("../../utils/dbHeplerFunc");
 const { checkUserExists } = require("../../utils/dbValidations");
 
-// Assuming you're using Express.js
 exports.create = async (req, res) => {
   const {
     user_id,
@@ -23,6 +22,7 @@ exports.create = async (req, res) => {
     personal_insurance,
     vehicle_type_id,
     vehicle_color_id,
+    insurance_image,
   } = req.body;
 
   const vehicleData = {
@@ -36,6 +36,7 @@ exports.create = async (req, res) => {
     personal_insurance,
     vehicle_type_id,
     vehicle_color_id,
+    insurance_image,
   };
 
   try {
@@ -79,9 +80,8 @@ exports.create = async (req, res) => {
       );
     }
 
-    const vehicleId = insertResult.data.id; // Assuming the ID of the new record is returned in the result
+    const vehicleId = insertResult.data.id; 
 
-    // Fetch the newly added vehicle details along with type and color
     const fullVehicleDetails = await pool.query(
       `
       SELECT vd.*, vt.name AS vehicle_type, vc.name AS vehicle_color, vc.code AS color_code
