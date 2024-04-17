@@ -30,8 +30,9 @@ exports.pay = async (req, res) => {
 
     if (payment_type === "cash") {
       const saveJoinRideDetails = await saveJoinRideDetailsToDB(
+        res,
         join_ride_details,
-        payment_type
+        payment_type,
       );
       return res.json({
         status: "success",
@@ -80,12 +81,15 @@ exports.pay = async (req, res) => {
       } = payment_details;
 
       const saveJoinRideDetails = await saveJoinRideDetailsToDB(
+        res,
         join_ride_details
       );
 
       const rideJoinId =
         saveJoinRideDetails.data.id + "," + join_ride_details.ride_id;
       // const [jId, rId] = rideJoinId.split(",");
+
+      console.log("rideJoinId", rideJoinId);
 
       const create_payment_json = {
         intent: "sale",
