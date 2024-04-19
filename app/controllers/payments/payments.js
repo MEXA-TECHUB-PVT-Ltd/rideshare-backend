@@ -14,7 +14,7 @@ const { updateRecord, createRecord } = require("../../utils/dbHeplerFunc");
 const WEB_HOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
 // TODO: If ride is instant use payment api to get into the ride joiner direct else use the join ride api to first onboard on the requested ride joiner list
 paypal.configure({
-  mode: "sandbox",
+  mode: "live",
   client_id: process.env.PAYPAL_CLIENT_ID,
   client_secret: process.env.PAYPAL_SECRET_ID,
 });
@@ -112,6 +112,7 @@ exports.pay = async (req, res) => {
       paypal.payment.create(create_payment_json, function (error, payment) {
         if (error) {
           // throw error;
+          console.log(error);
           res.json({ error: true, message: error });
         } else {
           const approval_url = payment.links.find(
