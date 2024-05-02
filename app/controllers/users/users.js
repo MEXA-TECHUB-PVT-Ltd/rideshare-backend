@@ -175,7 +175,7 @@ exports.signIn = async (req, res) => {
       // Update OTP after verifying password
       updatedResult = await updateRecord(
         "users",
-        { otp }, // What to update
+        { otp, device_id }, // What to update
         ["email"], // Where to update
         { column: "email", value: email } // Condition
       );

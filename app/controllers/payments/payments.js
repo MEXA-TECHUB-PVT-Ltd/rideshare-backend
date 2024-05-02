@@ -14,7 +14,7 @@ const { updateRecord, createRecord } = require("../../utils/dbHeplerFunc");
 const WEB_HOOK_ID = process.env.PAYPAL_WEBHOOK_ID;
 // TODO: If ride is instant use payment api to get into the ride joiner direct else use the join ride api to first onboard on the requested ride joiner list
 paypal.configure({
-  mode: "live",
+  mode: "sandbox", // or live
   client_id: process.env.PAYPAL_CLIENT_ID,
   client_secret: process.env.PAYPAL_SECRET_ID,
 });
@@ -26,24 +26,43 @@ exports.pay = async (req, res) => {
       join_ride_details,
       payment_type = "paypal",
       ride_amount,
+      ride_joiner_id,
     } = req.body;
 
     if (payment_type === "cash") {
-      const saveJoinRideDetails = await saveJoinRideDetailsToDB(
-        res,
-        join_ride_details,
-        payment_type,
-      );
-      return res.json({
-        status: "success",
-        message: "Ride joined successfully",
-        result: saveJoinRideDetails,
-      });
+      if (ride_joiner_id) {
+        const result = await pool.query(
+          `UPDATE ride_joiners SET status = 'accepted', payment_type = $1, payment_status = $2 WHERE id = $3 RETURNING *`,
+          [payment_type, true, ride_joiner_id]
+        );
+        if (result.rowCount === 0) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Joined ride not found" });
+        }
+        return res.json({
+          status: "success",
+          message: "Ride joined successfully",
+          result: result.rows[0],
+        });
+      } else {
+        const saveJoinRideDetails = await saveJoinRideDetailsToDB(
+          res,
+          join_ride_details,
+          payment_type
+        );
+        return res.json({
+          status: "success",
+          message: "Ride joined successfully",
+          result: saveJoinRideDetails,
+        });
+      }
     } else if (payment_type === "wallet") {
       const result = await payWithWallet(
         ride_amount,
         join_ride_details,
-        payment_type
+        payment_type,
+        ride_joiner_id
       );
       console.log(result);
       if (result.success) {
@@ -80,14 +99,28 @@ exports.pay = async (req, res) => {
         },
       } = payment_details;
 
-      const saveJoinRideDetails = await saveJoinRideDetailsToDB(
-        res,
-        join_ride_details
-      );
+      let rideJoinId;
+      if (ride_joiner_id) {
+        const result = await pool.query(
+          `UPDATE ride_joiners SET status = 'accepted', payment_type = $1, payment_status = $2 WHERE id = $3 RETURNING *`,
+          [payment_type, true, ride_joiner_id]
+        );
+        if (result.rowCount === 0) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Joined ride not found" });
+        }
+        rideJoinId = ride_joiner_id + "," + result.rows[0].ride_id;
+      } else {
+        const saveJoinRideDetails = await saveJoinRideDetailsToDB(
+          res,
+          join_ride_details
+        );
 
-      const rideJoinId =
-        saveJoinRideDetails.data.id + "," + join_ride_details.ride_id;
-      // const [jId, rId] = rideJoinId.split(",");
+        rideJoinId =
+          saveJoinRideDetails.data.id + "," + join_ride_details.ride_id;
+        // const [jId, rId] = rideJoinId.split(",");
+      }
 
       console.log("rideJoinId", rideJoinId);
 
@@ -219,9 +252,7 @@ exports.getTransactionHistory = async (req, res) => {
   }
 };
 
-
 exports.getAllTransactionHistory = async (req, res) => {
-
   try {
     // Combine queries to fetch transactions where the user is either the rider or the joiner
     const query = `
@@ -256,12 +287,6 @@ exports.getAllTransactionHistory = async (req, res) => {
       .json({ success: false, message: "Internal server error." });
   }
 };
-
-
-
-
-
-
 
 exports.getAdminTransactionHistory = async (req, res) => {
   try {
@@ -486,7 +511,9 @@ exports.withdraw = async (req, res) => {
 
       return res.status(500).json({ success: false, message: clientMessage });
     }
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
   }
 };
 exports.breakPaymentThroughWallet = async (req, res) => {
