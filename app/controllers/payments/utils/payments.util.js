@@ -113,12 +113,34 @@ async function manageWallet(userId, amount, isAdmin = false) {
  * pay with wallet
  */
 
-exports.payWithWallet = async (rideAmount, joinRideDetails, paymentType) => {
+exports.payWithWallet = async (
+  rideAmount,
+  joinRideDetails,
+  payment_type, rideJoinerId
+) => {
   try {
-    const saveJoinRideDetails = await saveJoinRideDetailsToDB(joinRideDetails);
-    const rideJoinId = saveJoinRideDetails.data.id;
-    const joinerId = saveJoinRideDetails.data.user_id;
-    const rideId = saveJoinRideDetails.data.ride_id;
+    let rideJoinId, joinerId, rideId;
+    if (rideJoinerId) {
+      const result = await pool.query(
+        `UPDATE ride_joiners SET status = 'accepted', payment_type = $1, payment_status = $2 WHERE id = $3 RETURNING *`,
+        [payment_type, true, rideJoinerId]
+      );
+      if (result.rowCount === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Joined ride not found" });
+      }
+      rideJoinId = rideJoinerId;
+      joinerId = result.rows[0].user_id;
+      rideId = result.rows[0].ride_id;
+    } else {
+      const saveJoinRideDetails = await saveJoinRideDetailsToDB(
+        joinRideDetails
+      );
+      rideJoinId = saveJoinRideDetails.data.id;
+      joinerId = saveJoinRideDetails.data.user_id;
+      rideId = saveJoinRideDetails.data.ride_id;
+    }
     const existingWallet = await checkUserExists("wallet", "user_id", joinerId);
     const existingRides = await checkUserExists("rides", "id", rideId);
     const parseRideAmount = parseFloat(rideAmount);
@@ -164,7 +186,7 @@ exports.payWithWallet = async (rideAmount, joinRideDetails, paymentType) => {
       amount: { total: parseRideAmount },
       status: "incoming",
       description: "Payment through wallet!",
-      adminTax: adminTax
+      adminTax: adminTax,
     });
 
     // Log admin transaction for the tax
@@ -182,8 +204,7 @@ exports.payWithWallet = async (rideAmount, joinRideDetails, paymentType) => {
   }
 };
 
-
-exports.saveWithdrawLogs = async (userId, email, amount,  errors) => {
+exports.saveWithdrawLogs = async (userId, email, amount, errors) => {
   try {
     await pool.query(
       `INSERT INTO error_logs (user_id, email, amount, errors, type) VALUES ($1, $2, $3, $4, $5)`,

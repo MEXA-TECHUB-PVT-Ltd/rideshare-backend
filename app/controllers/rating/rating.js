@@ -1,8 +1,5 @@
 const { responseHandler } = require("../../utils/commonResponse");
-const {
-  createRecord,
-  getAll,
-} = require("../../utils/dbHeplerFunc");
+const { createRecord, getAll } = require("../../utils/dbHeplerFunc");
 
 // Assuming you're using Express.js
 exports.create = async (req, res) => {
@@ -98,8 +95,6 @@ exports.getAllRatingsByRide = async (req, res) => {
   );
 };
 
-
-
 exports.getAllRatingsOfUser = async (req, res) => {
   const { user_id } = req.params; // Assuming user_id is passed as a URL parameter
 
@@ -119,6 +114,11 @@ exports.getAllRatingsOfUser = async (req, res) => {
     LEFT JOIN users u ON r.user_id = u.id
     LEFT JOIN rides ON r.ride_id = rides.id`;
 
+  let additionalFilters = {};
+  if (user_id) {
+    additionalFilters["rides.user_id"] = user_id;
+  }
+
   // Call the generic getAll function
   return getAll(
     req,
@@ -126,8 +126,7 @@ exports.getAllRatingsOfUser = async (req, res) => {
     "rating r", // Alias 'rating' as 'r'
     "r.created_at", // Default sort field
     fields,
-    {}, // No additional filters
+    additionalFilters, // No additional filters
     join
   );
 };
-

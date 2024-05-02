@@ -83,6 +83,7 @@ exports.getAll = async (
     const result = await pool.query(query, queryParams);
     // console.log(query, queryParams, "\n", "result", result.rowCount);
 
+
     if (result.rowCount === 0) {
       return responseHandler(res, 404, false, "No records found");
     }

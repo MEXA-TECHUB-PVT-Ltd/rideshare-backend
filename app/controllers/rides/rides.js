@@ -602,12 +602,12 @@ exports.getRideJoiners = async (req, res) => {
   const ride_id = parseInt(req.params.ride_id, 10);
 
   const join = `
-  JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-  JOIN rides rd ON rj.ride_id = rd.id
-    JOIN driver_verification_request dvr ON u.id = dvr.user_id
-  JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-  JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-  JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+  LEFT JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+  LEFT JOIN rides rd ON rj.ride_id = rd.id
+  LEFT JOIN driver_verification_request dvr ON u.id = dvr.user_id
+  LEFT JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+  LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+  LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
   LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -673,6 +673,7 @@ exports.getRideJoiners = async (req, res) => {
 
   const additionalFilters = {};
   additionalFilters["rj.status"] = "accepted";
+  additionalFilters["rj.payment_status"] = true;
   if (ride_id) {
     additionalFilters["rj.ride_id"] = ride_id;
   }
@@ -693,11 +694,11 @@ exports.getAllPublishByUser = async (req, res) => {
   const user_id = parseInt(req.params.user_id, 10);
 
   const join = `
-    JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
-    JOIN driver_verification_request dvr ON u.id = dvr.user_id
-    JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN driver_verification_request dvr ON u.id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
       LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -763,12 +764,12 @@ exports.getAllJoinedByUser = async (req, res) => {
   const { user_id } = req.params;
 
   const join = `
-    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    JOIN rides rd ON rj.ride_id = rd.id
-    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
-    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN rides rd ON rj.ride_id = rd.id
+    LEFT JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
 LEFT JOIN LATERAL (
   SELECT json_agg(c) AS cautions_details
   FROM (
@@ -828,6 +829,7 @@ LEFT JOIN LATERAL (
 
   const additionalFilters = {};
   additionalFilters["rj.status"] = "accepted";
+  additionalFilters["rj.payment_status"] = true;
   if (user_id) {
     additionalFilters["rj.user_id"] = user_id;
   }
@@ -851,11 +853,11 @@ exports.getAllRideByStatus = async (req, res) => {
   const user_id = parseInt(req.params.user_id, 10);
 
   const join = `
-    JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
-    JOIN driver_verification_request dvr ON r.user_id = dvr.user_id
-    JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON r.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN driver_verification_request dvr ON r.user_id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON r.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
       LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -926,12 +928,12 @@ exports.getAllRideByStatus = async (req, res) => {
 
 exports.getAllRequestedRides = async (req, res) => {
   const join = `
-    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    JOIN rides rd ON rj.ride_id = rd.id
-    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
-    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN rides rd ON rj.ride_id = rd.id
+    LEFT JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
       LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -996,6 +998,7 @@ exports.getAllRequestedRides = async (req, res) => {
 
   const additionalFilters = {};
   additionalFilters["rj.status"] = "pending";
+  additionalFilters["rj.payment_status"] = false;
 
   getAll(
     req,
@@ -1013,12 +1016,12 @@ exports.getAllRequestedByRides = async (req, res) => {
   const { ride_id } = req.params;
 
   const join = `
-    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    JOIN rides rd ON rj.ride_id = rd.id
-    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
-    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN rides rd ON rj.ride_id = rd.id
+    LEFT JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
           LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -1099,6 +1102,7 @@ exports.getAllRequestedByRides = async (req, res) => {
 
   const additionalFilters = {
     "rj.status": "pending",
+    "rj.payment_status": false,
     "rj.ride_id": ride_id,
   };
 
@@ -1118,12 +1122,12 @@ exports.getAllRequestedByUser = async (req, res) => {
   const { user_id } = req.params;
 
   const join = `
-    JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
-    JOIN rides rd ON rj.ride_id = rd.id
-    JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
-    JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
-    JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
-    JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
+    LEFT JOIN users u ON rj.user_id = u.id AND u.deleted_at IS NULL
+    LEFT JOIN rides rd ON rj.ride_id = rd.id
+    LEFT JOIN driver_verification_request dvr ON rd.user_id = dvr.user_id
+    LEFT JOIN vehicles_details vd ON rd.vehicles_details_id = vd.id
+    LEFT JOIN vehicle_types vt ON vd.vehicle_type_id = vt.id
+    LEFT JOIN vehicle_colors vc ON vd.vehicle_color_id = vc.id
           LEFT JOIN LATERAL (
     SELECT json_agg(json_build_object(
       'id', cautions.id,
@@ -1205,6 +1209,7 @@ exports.getAllRequestedByUser = async (req, res) => {
 
   const additionalFilters = {
     "rj.status": "pending",
+    "rj.payment_status": false,
     "rd.user_id": user_id,
   };
 
